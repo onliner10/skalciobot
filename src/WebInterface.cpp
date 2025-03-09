@@ -1,146 +1,62 @@
 #include "WebInterface.h"
 
+static String uri_regex(const String& pattern) {
+    return "^\\/motors\\/" + pattern + "$";  // Fixed regex pattern
+}
+
 void WebInterface::begin() {
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-        String html = R"(
-            <html><body style="font-family: Arial, sans-serif;">
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+        String html = R"rawliteral(
+            <html><body style='font-family: Arial, sans-serif;'>
             <h1>Robot Control</h1>
-            <div style="margin: 20px 0;">
-                Status: <span id="statusText">Checking...</span>
-                <button id="toggleBtn" onclick='toggleRobot()' style="margin-left: 10px;">
+            <div style='margin: 20px 0;'>
+                Status: <span id='statusText'>Checking...</span>
+                <button id='toggleBtn' onclick='toggleRobot()' style='margin-left: 10px;'>
                     Loading...
                 </button>
             </div>
-            <h2>Debug Menu</h2>
-            <div style="margin: 20px 0;">
+            <div style='margin: 20px 0;'>
                 <h3>Manual Control</h3>
-                <div style="margin: 10px 0;">
-                    <h4>Steering</h4>
-                    <button onclick='fetch("/motors/steer/left").then(updateStatus)'>Turn Left</button>
-                    <button onclick='fetch("/motors/steer/straight").then(updateStatus)'>Center</button>
-                    <button onclick='fetch("/motors/steer/right").then(updateStatus)'>Turn Right</button>
+                <div style='margin: 10px 0;'>
+                    <h4>Steering Control</h4>
+                    <input type='range' min='-100' max='100' value='0' 
+                           oninput='setSteeringValue(this.value)' style='width: 300px'>
+                    <span id='steeringValue'>0</span>
                 </div>
-                <div style="margin: 10px 0;">
-                    <h4>Drive</h4>
-                    <button onclick='fetch("/motors/drive/forward").then(updateStatus)'>Forward</button>
-                    <button onclick='fetch("/motors/drive/stop").then(updateStatus)'>STOP</button>
-                    <button onclick='fetch("/motors/drive/backward").then(updateStatus)'>Backward</button>
+                <div style='margin: 10px 0;'>
+                    <h4>Speed Control</h4>
+                    <input type='range' min='-200' max='200' value='0' 
+                           oninput='setRpmValue(this.value)' style='width: 300px'>
+                    <span id='rpmValue'>0 RPM</span>
                 </div>
             </div>
-            <div style="margin: 20px 0;">
-                <h3>Test Sequence</h3>
-                <button onclick='runTest()'>Run Full Test</button>
-            </div>
-            <div style="margin: 20px 0;">
-                <h3>Control Mode</h3>
-                <button id="modeBtn" onclick='toggleMode()'>Switch to Manual Mode</button>
-            </div>
-            <div id="motorStatus" style="margin: 10px 0; font-family: monospace;">
+            <div id='motorStatus' style='margin: 10px 0; font-family: monospace;'>
                 Motor Status: Waiting...
             </div>
-            <div id="sensorData" style="margin: 10px 0; font-family: monospace;">
+            <div id='sensorData' style='margin: 10px 0; font-family: monospace;'>
                 Loading sensor data...
             </div>
-            <div style="margin: 20px 0;">
-                <h3>Debug Log</h3>
-                <div id="logArea" style="font-family: monospace; 
-                                       white-space: pre; 
-                                       background: #f0f0f0; 
-                                       padding: 10px; 
-                                       height: 400px; 
-                                       overflow-y: scroll;
-                                       font-size: 12px;
-                                       line-height: 1.2;">
-                </div>
+            <div id='logArea' style='font-family: monospace; 
+                                   white-space: pre; 
+                                   background-color: #f0f0f0; 
+                                   padding: 10px; 
+                                   height: 400px; 
+                                   overflow-y: scroll;
+                                   font-size: 12px;
+                                   line-height: 1.2;'>
             </div>
             <script>
-                function updateStatus() {
+                function updateStatus() { 
                     fetch('/status')
                         .then(response => response.text())
                         .then(data => {
-                            const status = data === 'ON';
-                            document.getElementById('statusText').innerText = 
-                                status ? 'Running' : 'Stopped';
-                            document.getElementById('statusText').style.color = 
-                                status ? 'green' : 'red';
-                            document.getElementById('toggleBtn').innerText = 
-                                status ? 'Stop Robot' : 'Start Robot';
+                            // ...existing updateStatus code...
                         });
                 }
-                
-                function toggleRobot() {
-                    fetch('/toggle')
-                        .then(response => response.text())
-                        .then(data => {
-                            updateStatus();
-                        });
-                }
-                
-                function updateSensors() {
-                    fetch('/sensors')
-                        .then(response => response.text())
-                        .then(data => {
-                            document.getElementById('sensorData').innerHTML = 
-                                data.replace(/\n/g, '<br>');
-                        });
-                }
-                
-                setInterval(updateSensors, 500);
-                setInterval(updateStatus, 1000);
-                updateSensors();
-                updateStatus();
-
-                async function runTest() {
-                    const steps = [
-                        ['/motors/drive/forward', 'Testing forward...'],
-                        ['/motors/steer/right', 'Testing right turn...'],
-                        ['/motors/steer/left', 'Testing left turn...'],
-                        ['/motors/steer/straight', 'Testing straight...'],
-                        ['/motors/drive/backward', 'Testing backward...'],
-                        ['/motors/drive/stop', 'Test complete.']
-                    ];
-                    
-                    for(const [url, msg] of steps) {
-                        document.getElementById('motorStatus').innerText = msg;
-                        await fetch(url);
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    }
-                }
-                
-                function updateMotorStatus(status) {
-                    document.getElementById('motorStatus').innerText = 'Motor Status: ' + status;
-                }
-
-                function toggleMode() {
-                    fetch('/mode/toggle')
-                        .then(response => response.text())
-                        .then(data => {
-                            const isManual = data === 'MANUAL';
-                            document.getElementById('modeBtn').innerText = 
-                                isManual ? 'Switch to Auto Mode' : 'Switch to Manual Mode';
-                            document.getElementById('modeBtn').style.backgroundColor = 
-                                isManual ? '#ffeb3b' : '#4caf50';
-                        });
-                }
-
-                function updateLog() {
-                    fetch('/log')
-                        .then(response => response.text())
-                        .then(data => {
-                            const logArea = document.getElementById('logArea');
-                            const wasScrolledToBottom = 
-                                logArea.scrollHeight - logArea.clientHeight <= logArea.scrollTop + 1;
-                            logArea.textContent = data;
-                            if (wasScrolledToBottom) {
-                                logArea.scrollTop = logArea.scrollHeight;
-                            }
-                        });
-                }
-                setInterval(updateLog, 1000);
-                updateLog();
+                // ...rest of existing JavaScript...
             </script>
             </body></html>
-        )";
+        )rawliteral";
         request->send(200, "text/html", html);
     });
 
@@ -159,43 +75,52 @@ void WebInterface::begin() {
         request->send(200, "text/plain", "Running test sequence");
     });
 
-    server.on("/sensors", HTTP_GET, [this](AsyncWebServerRequest *request){
-        sensors.read();
-        String response = "Front: " + String(sensors.getFrontDistance()) + "mm\n"
-                         "Left: " + String(sensors.getLeftDistance()) + "mm\n"
-                         "Right: " + String(sensors.getRightDistance()) + "mm";
-        request->send(200, "text/plain", response);
+    server.on("/distance", HTTP_GET, [this](AsyncWebServerRequest *request) {
+        sensors.update();  // Ensure sensors are updated before reading
+        String json = "{";
+        json += "\"front\":" + String(sensors.getFrontDistance()) + ",";
+        json += "\"left\":" + String(sensors.getLeftDistance()) + ",";
+        json += "\"right\":" + String(sensors.getRightDistance());
+        json += "}";
+        request->send(200, "application/json", json);
     });
 
-    // New motor control endpoints
-    server.on("/motors/steer/left", HTTP_GET, [this](AsyncWebServerRequest *request){
-        motors.setSteering(LEFT);
-        request->send(200, "text/plain", "Steering: LEFT");
+    // Update motor control endpoints with fixed regex patterns
+    server.on(uri_regex("steering/(-?\\d+\\.?\\d*)").c_str(), HTTP_GET, 
+        [this](AsyncWebServerRequest *request) {
+        String value = request->pathArg(0);
+        if (value.length() > 0) {
+            float steering = value.toFloat();
+            motors.setSteering(steering);
+            request->send(200, "text/plain", "Steering set to: " + String(steering));
+        } else {
+            request->send(400, "text/plain", "Invalid steering value");
+        }
     });
 
-    server.on("/motors/steer/right", HTTP_GET, [this](AsyncWebServerRequest *request){
-        motors.setSteering(RIGHT);
-        request->send(200, "text/plain", "Steering: RIGHT");
+    server.on(uri_regex("rpm/(-?\\d+)").c_str(), HTTP_GET, 
+        [this](AsyncWebServerRequest *request) {
+        String value = request->pathArg(0);
+        if (value.length() > 0) {
+            int rpm = value.toInt();
+            motors.setRpm(rpm);
+            request->send(200, "text/plain", "RPM set to: " + String(rpm));
+        } else {
+            request->send(400, "text/plain", "Invalid RPM value");
+        }
     });
 
-    server.on("/motors/steer/straight", HTTP_GET, [this](AsyncWebServerRequest *request){
-        motors.setSteering(STRAIGHT);
-        request->send(200, "text/plain", "Steering: STRAIGHT");
-    });
-
-    server.on("/motors/drive/forward", HTTP_GET, [this](AsyncWebServerRequest *request){
-        motors.setSpeed(100);
-        request->send(200, "text/plain", "Driving forward");
-    });
-
-    server.on("/motors/drive/backward", HTTP_GET, [this](AsyncWebServerRequest *request){
-        motors.setSpeed(-100);
-        request->send(200, "text/plain", "Driving backward");
-    });
-
-    server.on("/motors/drive/stop", HTTP_GET, [this](AsyncWebServerRequest *request){
+    server.on("/motors/stop", HTTP_GET, [this](AsyncWebServerRequest *request) {
         motors.stop();
-        request->send(200, "text/plain", "Stopped");
+        request->send(200, "text/plain", "Motors stopped");
+    });
+
+    server.on("/motors/status", HTTP_GET, [this](AsyncWebServerRequest *request) {
+        String status = "Motor Status:\n";
+        status += "Current RPM: " + String(motors.getRpm()) + "\n";
+        status += "Steering: " + String(motors.getSteering()) + "\n";
+        status += "Fault Status: " + String(motors.checkFault() ? "FAULT DETECTED" : "OK");
+        request->send(200, "text/plain", status);
     });
 
     server.on("/mode/toggle", HTTP_GET, [this](AsyncWebServerRequest *request){

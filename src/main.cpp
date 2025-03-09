@@ -1,12 +1,14 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <ESPmDNS.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 #include "config.h"
 #include "MotorController.h"
 #include "DistanceSensors.h"
 #include "RobotLogic.h"
 #include "WebInterface.h"
 #include "credentials.h"
-#include <PCF8574.h>
 #include "loggers/SerialLogger.h"
 #include "loggers/WebLogger.h"
 #include "loggers/LogLevelDecorator.h"
@@ -17,23 +19,23 @@ LedLogger* ledLogger = new LedLogger(LED_BUILTIN, nullptr);  // Fix null to null
 WebLogger* webLogger = new WebLogger(ledLogger);  // Fix null to nullptr
 LogLevelDecorator* levelLogger = new LogLevelDecorator(webLogger, LOG_LEVEL, FILTERED_CONTEXTS);
 
+// Create motor instances
+Motor leftMotor(LEFT_MOTOR_IN1, LEFT_MOTOR_IN2, ENCODER_LEFT);
+Motor rightMotor(RIGHT_MOTOR_IN1, RIGHT_MOTOR_IN2, ENCODER_RIGHT);
+
 // Create core components with logger
-MotorController motors(
-    STEERING_MOTOR_1, STEERING_MOTOR_2,
-    DRIVE_MOTOR_1, DRIVE_MOTOR_2,
-    MOTOR_FLT, MOTOR_SLEEP, MOTOR_FLT  // Pass MOTOR_FLT twice since we only use it
-);
-PCF8574 pcf(0x20);
-DistanceSensors sensors(pcf);  // Remove logger parameter
+MotorController motors(leftMotor, rightMotor, MOTOR_SLEEP, MOTOR_FLT);
+DistanceSensors sensors;
 RobotLogic robot(motors, sensors, *levelLogger);
 
-// Create web interface with both logger and webLogger
-WebInterface web(robot, motors, sensors, *levelLogger, *webLogger);
+// Create AsyncWebServer object on port 80
+AsyncWebServer server(80);
+
+// Create web interface with webLogger
+WebInterface web(server, robot, motors, sensors, *webLogger);
 
 void setup() {
     Serial.begin(115200);
-    Wire.begin(SDA_PIN, SCL_PIN);
-    Wire.setClock(100000);  // Set to 100kHz
     
     Serial.println("\nConnecting to WiFi");
     levelLogger->info("Connecting to WiFi", LogContext::Wifi);  // Fix log call
@@ -46,8 +48,20 @@ void setup() {
     Serial.println(connMsg);
     levelLogger->info(connMsg, LogContext::Wifi);  // Fix log call
 
-    robot.begin();
+    // Set up mDNS responder
+    if(!MDNS.begin("skalciobot")) {
+        levelLogger->error("Error setting up mDNS responder!", LogContext::Boot);
+    }
+    
+    // Initialize web interface (this will add its routes to the server)
     web.begin();
+    
+    // Start the server after all routes are set up
+    server.begin();
+    
+    levelLogger->info("Web interface ready", LogContext::Boot);
+
+    robot.begin();
     
     levelLogger->info("System boot complete", LogContext::Boot);
 }

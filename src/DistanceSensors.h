@@ -1,32 +1,43 @@
 #pragma once
 #include <Arduino.h>
-#include <Wire.h>
-#include <VL53L0X.h>
-#include <PCF8574.h>
-#include "config.h"  // Add this include
+#include "HC_SR04.h"
+#include "config.h"
 
 class DistanceSensors {
 private:
-    PCF8574& pcf;
-    VL53L0X sensors[3];
-    uint16_t lastMeasurements[3];
-    unsigned long lastReadTime[3];
-    static const uint8_t SENSOR_ADDRESSES[3];
+    uint16_t lastMeasurements[NUM_SENSORS];
+    unsigned long lastReadTime[NUM_SENSORS];
     
-    int currentSensor = 0;
-    unsigned long nextReadTime = 0;
-    static const unsigned long SENSOR_CYCLE_DELAY = 40;  // 40ms between readings
+    HC_SR04_BASE* slaves[2];
+    HC_SR04<FRONT_ECHO_PIN> sonicMaster;
+
+    bool measurementStarted = false;
+    unsigned long nextMeasurementTime = 0;
+    static constexpr unsigned long MEASUREMENT_SPACING = 50;  // ms between measurements
 
     uint16_t getValidatedDistance(uint16_t reading) const;
 
 public:
-    DistanceSensors(PCF8574& pcfDevice) 
-        : pcf(pcfDevice) {}
+    DistanceSensors() : sonicMaster(FRONT_TRIG_PIN) {
+        slaves[0] = new HC_SR04<LEFT_ECHO_PIN>(LEFT_TRIG_PIN);
+        slaves[1] = new HC_SR04<RIGHT_ECHO_PIN>(RIGHT_TRIG_PIN);
         
+        for(int i = 0; i < NUM_SENSORS; i++) {
+            lastMeasurements[i] = 0;
+            lastReadTime[i] = 0;
+        }
+    }
+    
+    ~DistanceSensors() {
+        delete slaves[0];
+        delete slaves[1];
+    }
+
     bool begin();
-    void read() {}  // Just return cached values
-    void update();  // Background sensor cycling
-    uint16_t getFrontDistance() { return getValidatedDistance(lastMeasurements[0]); }
-    uint16_t getLeftDistance() { return getValidatedDistance(lastMeasurements[2]); }
-    uint16_t getRightDistance() { return getValidatedDistance(lastMeasurements[1]); }
+    void update();
+    
+    uint16_t getFrontDistance() const { return lastMeasurements[0]; }
+    uint16_t getLeftDistance() const { return lastMeasurements[1]; }
+    uint16_t getRightDistance() const { return lastMeasurements[2]; }
+    unsigned long getLastReadTime(int sensor) const { return lastReadTime[sensor]; }
 };

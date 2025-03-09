@@ -1,18 +1,20 @@
 #pragma once
 
+#include <Arduino.h>
+
 // Motor pins
-#define DRIVE_MOTOR_1 GPIO_NUM_9
-#define DRIVE_MOTOR_2 GPIO_NUM_8
-#define STEERING_MOTOR_1 GPIO_NUM_11
-#define STEERING_MOTOR_2 GPIO_NUM_10
+#define LEFT_MOTOR_IN1 GPIO_NUM_18
+#define LEFT_MOTOR_IN2 GPIO_NUM_16
+#define RIGHT_MOTOR_IN1 GPIO_NUM_17
+#define RIGHT_MOTOR_IN2 GPIO_NUM_4
 
 // Motor control pins
-#define MOTOR_SLEEP GPIO_NUM_2
-#define MOTOR_FLT GPIO_NUM_3    // Only fault pin we'll use
+#define MOTOR_SLEEP GPIO_NUM_5
+#define MOTOR_FLT GPIO_NUM_19
 
-// I2C pins
-#define SDA_PIN GPIO_NUM_33
-#define SCL_PIN GPIO_NUM_35
+// Encoder pins
+#define ENCODER_LEFT GPIO_NUM_2
+#define ENCODER_RIGHT GPIO_NUM_15
 
 // Distance thresholds (in millimeters)
 #define FRONT_OBSTACLE_THRESHOLD 200
@@ -22,8 +24,16 @@
 // Movement timing (in milliseconds)
 #define BACKUP_DURATION 1000  // Time to spend backing up
 
-// PCF8574 pins
-#define BUZZER_PIN 5  // P3 on PCF8574
+// HC-SR04 pins
+#define LEFT_ECHO_PIN GPIO_NUM_13
+#define LEFT_TRIG_PIN GPIO_NUM_14
+#define FRONT_ECHO_PIN GPIO_NUM_25
+#define FRONT_TRIG_PIN GPIO_NUM_27
+#define RIGHT_ECHO_PIN GPIO_NUM_34
+#define RIGHT_TRIG_PIN GPIO_NUM_35
+
+// Add this for DistanceSensors
+#define NUM_SENSORS 3
 
 // Buzzer timing
 #define BEEP_DURATION 100  // Short 100ms beep
@@ -50,19 +60,31 @@
 #define ENABLE_DEBUG_LOGS true    // Set to false to disable debug messages
 #define LOG_LEVEL LogLevel::Debug  // Enable debug logs
 
-// Filter context examples:
-// Filter nothing (show all logs):
-// #define FILTERED_CONTEXTS 0
-#define FILTERED_CONTEXTS (1 << static_cast<int>(LogContext::Sensor))
+// Navigation constants
+#define MIN_TURN_DISTANCE 150    // 15cm - will cause full turn
+#define TURN_EXPONENT 0.005     // Decay rate for exponential function
+#define FRONT_MULTIPLIER_MAX 3.0 // Maximum turn multiplier from front sensor
+#define MAX_TURN_DISTANCE 500    // Only used for front sensor
+#define BACKUP_MIN_TIME 500      // Minimum backup time in ms
+#define BACKUP_MAX_TIME 1500     // Maximum backup time in ms
+#define TURN_MIN_TIME 300        // Minimum turn time after backup
+#define TURN_MAX_TIME 800        // Maximum turn time after backup
+#define STUCK_RPM_THRESHOLD 5    // RPM threshold to consider motor stuck
 
-// Current setting - filter navigation and motor messages:
-// #define FILTERED_CONTEXTS ((1 << static_cast<int>(LogContext::Navigation)) | \
-//                          (1 << static_cast<int>(LogContext::Motor)))
+// Motor PID Configuration
+#define MOTOR_PID_KP 0.1      // Start with low value
+#define MOTOR_PID_KI 0.01     // Kp/10
+#define MOTOR_PID_KD 0.001    // Kp/100
+#define PID_SAMPLE_TIME 20    // 20ms (50Hz)
+#define ENCODER_PPR 12        // Pulses per revolution
+#define MIN_RPM 30           // Minimum RPM for reliable operation
+#define MAX_RPM 200          // Maximum RPM expected
+#define RPM_CALC_INTERVAL 100 // How often to calculate RPM (ms)
 
-// Filter only navigation:
-// #define FILTERED_CONTEXTS (1 << static_cast<int>(LogContext::Navigation))
+// Define FILTERED_CONTEXTS
+#define FILTERED_CONTEXTS 0
 
-// Filter navigation, motor and sensor messages:
-// #define FILTERED_CONTEXTS ((1 << static_cast<int>(LogContext::Navigation)) | \
-//                          (1 << static_cast<int>(LogContext::Motor)) | \
-//                          (1 << static_cast<int>(LogContext::Sensor)))
+// Define LED_BUILTIN if not defined
+#ifndef LED_BUILTIN
+#define LED_BUILTIN 2
+#endif

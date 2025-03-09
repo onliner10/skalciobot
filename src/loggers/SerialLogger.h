@@ -1,4 +1,5 @@
 #pragma once
+#include <Arduino.h>  // Add Arduino.h for Serial
 #include "../Logger.h"
 #include "MessageFormatter.h"
 
