@@ -1,35 +1,43 @@
 #include "DistanceSensors.h"
 
 bool DistanceSensors::begin() {
-    return sonicMaster.beginAsync();
+    bool success = true;
+    success &= frontSensor.beginAsync();
+    success &= leftSensor.beginAsync();
+    success &= rightSensor.beginAsync();
+    
+    if (!success) {
+        logger.error("Failed to initialize distance sensors", LogContext::Sensor);
+    }
+    return success;
 }
 
 void DistanceSensors::update() {
     unsigned long now = millis();
     
     if (!measurementStarted && now >= nextMeasurementTime) {
-        sonicMaster.startAsync(30000);  // 30ms timeout
+        frontSensor.startAsync(30000);
+        leftSensor.startAsync(30000);
+        rightSensor.startAsync(30000);
         measurementStarted = true;
         return;
     }
 
-    if (measurementStarted && sonicMaster.isFinished()) {
-        // Read all sensors
-        for (int i = 0; i < NUM_SENSORS; i++) {
-            uint16_t distance = sonicMaster.getDist_mm(i);
-            lastMeasurements[i] = getValidatedDistance(distance);
+    if (measurementStarted && 
+        frontSensor.isFinished() && 
+        leftSensor.isFinished() && 
+        rightSensor.isFinished()) {
+        
+        // Store raw readings directly
+        lastMeasurements[FRONT_SENSOR] = frontSensor.getDist_mm();
+        lastMeasurements[LEFT_SENSOR] = leftSensor.getDist_mm();
+        lastMeasurements[RIGHT_SENSOR] = rightSensor.getDist_mm();
+
+        for(int i = 0; i < NUM_SENSORS; i++) {
             lastReadTime[i] = now;
         }
 
-        // Schedule next measurement
         measurementStarted = false;
         nextMeasurementTime = now + MEASUREMENT_SPACING;
     }
-}
-
-uint16_t DistanceSensors::getValidatedDistance(uint16_t reading) const {
-    if (reading == 0 || reading > 4000) { // HC-SR04 has max range of ~4m
-        return SENSOR_INVALID_READING;
-    }
-    return reading;
 }

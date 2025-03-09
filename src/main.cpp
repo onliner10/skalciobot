@@ -25,14 +25,15 @@ Motor rightMotor(RIGHT_MOTOR_IN1, RIGHT_MOTOR_IN2, ENCODER_RIGHT);
 
 // Create core components with logger
 MotorController motors(leftMotor, rightMotor, MOTOR_SLEEP, MOTOR_FLT);
-DistanceSensors sensors;
+DistanceSensors sensors(*levelLogger);  // Pass logger to sensors
 RobotLogic robot(motors, sensors, *levelLogger);
 
-// Create single WebServer for both OTA and application
-WebServer server(80);
+// Create separate servers for OTA and application
+WebServer otaServer(80);        // OTA updates
+WebServer appServer(8080);      // Main application
 
-// Create web interface with webLogger
-WebInterface web(server, robot, motors, sensors, *webLogger);
+// Create web interface with webLogger (using application server)
+WebInterface web(appServer, robot, motors, sensors, *webLogger);
 
 unsigned long ota_progress_millis = 0;
 
@@ -80,17 +81,21 @@ void setup() {
     if(!MDNS.begin("skalciobot")) {
         levelLogger->error("Error setting up mDNS responder!", LogContext::Boot);
     }
-
-    // Initialize ElegantOTA and web interface
-    ElegantOTA.begin(&server);
+    MDNS.addService("http", "tcp", 80);    // Web interface
+    MDNS.addService("arduino", "tcp", 3232); // OTA port
+    
+    // Initialize ElegantOTA
+    ElegantOTA.begin(&otaServer, "");  // Add empty auth
     ElegantOTA.onStart(onOTAStart);
     ElegantOTA.onProgress(onOTAProgress);
     ElegantOTA.onEnd(onOTAEnd);
+    otaServer.begin();
     
+    // Initialize application server on port 8080
     web.begin();
-    server.begin();
+    appServer.begin();
     
-    levelLogger->info("Web interface ready", LogContext::Boot);
+    levelLogger->info("Web interfaces ready", LogContext::Boot);
 
     robot.begin();
     
@@ -102,7 +107,8 @@ void loop() {
     robot.update();
     levelLogger->update();  // Update logger chain
     
-    server.handleClient();  // Handle both OTA and application requests
+    otaServer.handleClient();  // Handle OTA requests
+    appServer.handleClient();  // Handle application requests
     ElegantOTA.loop();  // Handle OTA updates
     
     delay(10);

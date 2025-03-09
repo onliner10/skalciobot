@@ -5,15 +5,19 @@ MotorController::MotorController(Motor& left, Motor& right, int slp, int flt)
 
 void MotorController::begin() {
     pinMode(sleepPin, OUTPUT);
-    pinMode(faultPin, INPUT_PULLUP);
-    
-    digitalWrite(sleepPin, HIGH);  // Enable motors
+    pinMode(faultPin, INPUT);
+    digitalWrite(sleepPin, LOW);  // Start with drivers disabled
     leftMotor.begin();
     rightMotor.begin();
 }
 
 void MotorController::setRpm(double rpm) {
     currentRpm = constrain(rpm, -MAX_RPM, MAX_RPM);
+    // Enable drivers BEFORE setting RPM, disable only when explicitly stopped
+    if (currentRpm != 0) {
+        digitalWrite(sleepPin, HIGH);
+        delay(1);  // Brief delay to let driver enable
+    }
     updateMotors();
 }
 
@@ -23,12 +27,18 @@ void MotorController::setSteering(float steering) {
 }
 
 void MotorController::updateMotors() {
-    // Calculate individual motor RPMs based on steering
-    float leftMultiplier = 1.0f - (currentSteering > 0 ? currentSteering : 0);
-    float rightMultiplier = 1.0f + (currentSteering < 0 ? currentSteering : 0);
+    // When steering is zero, both motors run at full target RPM
+    // When turning, outer wheel maintains speed while inner wheel reduces
+    double leftRpm = currentRpm;
+    double rightRpm = currentRpm;
     
-    double leftRpm = currentRpm * leftMultiplier;
-    double rightRpm = currentRpm * rightMultiplier;
+    if (currentSteering > 0) {  // Turning right
+        leftRpm = currentRpm;   // Outer wheel maintains speed
+        rightRpm = currentRpm * (1.0f - currentSteering);  // Inner wheel reduces
+    } else if (currentSteering < 0) {  // Turning left
+        leftRpm = currentRpm * (1.0f + currentSteering);   // Inner wheel reduces
+        rightRpm = currentRpm;  // Outer wheel maintains speed
+    }
     
     leftMotor.setRpm(leftRpm);
     rightMotor.setRpm(rightRpm);
@@ -44,10 +54,13 @@ void MotorController::update() {
 }
 
 void MotorController::stop() {
-    currentRpm = 0;
-    currentSteering = 0;
+    // Stop motors first
     leftMotor.stop();
     rightMotor.stop();
+    currentRpm = 0;
+    currentSteering = 0;
+    // Disable drivers after stopping
+    digitalWrite(sleepPin, LOW);
 }
 
 bool MotorController::checkFault() {

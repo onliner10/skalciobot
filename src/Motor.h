@@ -40,4 +40,16 @@ public:
     double getRpm() const { return currentRpm; }
     uint32_t getPulseCount() const { return pulseCount; }
     void resetPulseCount() { pulseCount = 0; }
+
+    // Raw PWM control (-255 to 255)
+    void setPwm(int16_t pwm) {
+        pwm = constrain(pwm, -255, 255);
+        if (pwm > 0) {
+            analogWrite(in1Pin, pwm);
+            analogWrite(in2Pin, 0);
+        } else {
+            analogWrite(in1Pin, 0);
+            analogWrite(in2Pin, -pwm);
+        }
+    }
 };

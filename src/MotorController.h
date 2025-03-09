@@ -33,10 +33,19 @@ public:
     double getRightRpm() const { return rightMotor.getRpm(); }
 
     void test() {
-        setRpm(100);  // Run forward
+        digitalWrite(sleepPin, HIGH);  // Enable drivers
+        delay(1);
+        
+        // Test forward
+        leftMotor.setPwm(128);
+        rightMotor.setPwm(128);
         delay(1000);
-        setRpm(-100); // Run backward
+        
+        // Test backward
+        leftMotor.setPwm(-128);
+        rightMotor.setPwm(-128);
         delay(1000);
-        stop();       // Stop motors
+        
+        stop();
     }
 };
