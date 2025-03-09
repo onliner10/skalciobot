@@ -40,4 +40,9 @@ public:
     bool isActive() { return active; }
     void setManualMode(bool manual);
     bool isManualMode() const { return manualMode; }
+    void toggle() { setActive(!active); }
+    bool toggleMode() { 
+        setManualMode(!manualMode); 
+        return manualMode;
+    }
 };

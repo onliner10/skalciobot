@@ -31,4 +31,12 @@ public:
     // Add getters for motor RPMs
     double getLeftRpm() const { return leftMotor.getRpm(); }
     double getRightRpm() const { return rightMotor.getRpm(); }
+
+    void test() {
+        setRpm(100);  // Run forward
+        delay(1000);
+        setRpm(-100); // Run backward
+        delay(1000);
+        stop();       // Stop motors
+    }
 };
