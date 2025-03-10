@@ -115,6 +115,4 @@ void loop() {
     otaServer.handleClient();  // Handle OTA requests
     appServer.handleClient();  // Handle application requests
     ElegantOTA.loop();  // Handle OTA updates
-    
-    delay(10);
 }
