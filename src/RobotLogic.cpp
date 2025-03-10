@@ -59,9 +59,21 @@ void RobotLogic::handleStuckState() {
     turnDuration = random(TURN_MIN_TIME, TURN_MAX_TIME);
     recoveryPhase = RecoveryPhase::Backing;
     
-    // Start backing up
-    motors.setPwm(-255);  // Full reverse
-    motors.setSteering(0);
+    // Alternate between forward and backward recovery
+    int recoveryPwm = lastRecoveryWasBackward ? 255 : -255;
+    lastRecoveryWasBackward = !lastRecoveryWasBackward;
+    
+    // Use opposite of current steering direction for recovery
+    float recoveryDirection = -motors.getSteering();
+    if (recoveryDirection == 0) {
+        recoveryDirection = random(2) ? 1.0f : -1.0f;
+    }
+    
+    motors.setPwm(recoveryPwm);
+    motors.setSteering(recoveryDirection);
+    
+    logger.info("Recovery direction: " + String(recoveryDirection) + 
+                ", PWM: " + String(recoveryPwm), LogContext::Navigation);
 }
 
 void RobotLogic::updateRecoveryManeuver() {
@@ -71,11 +83,10 @@ void RobotLogic::updateRecoveryManeuver() {
     switch (recoveryPhase) {
         case RecoveryPhase::Backing:
             if (elapsedTime >= backupDuration) {
-                // Switch to turning
+                // Keep same steering direction but go forward
                 recoveryPhase = RecoveryPhase::Turning;
                 recoveryStartTime = currentTime;
                 motors.setPwm(128);  // Half speed PWM for turning
-                motors.setSteering(random(2) ? 1.0f : -1.0f);
             }
             break;
             

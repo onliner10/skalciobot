@@ -23,6 +23,7 @@ private:
     unsigned long backupDuration = 0;
     unsigned long turnDuration = 0;
     RecoveryPhase recoveryPhase = RecoveryPhase::Backing;
+    bool lastRecoveryWasBackward = true;  // Start with backward recovery first
 
     float calculateSteering(uint16_t left, uint16_t right);
     float calculateFrontMultiplier(uint16_t front);
