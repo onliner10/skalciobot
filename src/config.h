@@ -3,18 +3,18 @@
 #include <Arduino.h>
 
 // Motor pins
-#define LEFT_MOTOR_IN1 GPIO_NUM_18
-#define LEFT_MOTOR_IN2 GPIO_NUM_16
-#define RIGHT_MOTOR_IN1 GPIO_NUM_17
-#define RIGHT_MOTOR_IN2 GPIO_NUM_4
+#define LEFT_MOTOR_IN1 GPIO_NUM_16
+#define LEFT_MOTOR_IN2 GPIO_NUM_18
+#define RIGHT_MOTOR_IN1 GPIO_NUM_4
+#define RIGHT_MOTOR_IN2 GPIO_NUM_17
 
 // Motor control pins
 #define MOTOR_SLEEP GPIO_NUM_5
 #define MOTOR_FLT GPIO_NUM_19
 
 // Encoder pins
-#define ENCODER_LEFT GPIO_NUM_2
-#define ENCODER_RIGHT GPIO_NUM_15
+#define ENCODER_LEFT GPIO_NUM_15
+#define ENCODER_RIGHT GPIO_NUM_21
 
 // Distance thresholds (in millimeters)
 #define FRONT_OBSTACLE_THRESHOLD 200
@@ -58,7 +58,7 @@
 
 // Debug configuration
 #define ENABLE_DEBUG_LOGS true    // Set to false to disable debug messages
-#define LOG_LEVEL LogLevel::Debug  // Enable debug logs
+#define LOG_LEVEL LogLevel::Info  // Enable debug logs
 
 // Navigation constants
 #define MIN_TURN_DISTANCE 150    // 15cm - will cause full turn
@@ -72,14 +72,14 @@
 #define STUCK_RPM_THRESHOLD 5    // RPM threshold to consider motor stuck
 
 // Motor PID Configuration
-#define MOTOR_PID_KP 0.1      // Start with low value
-#define MOTOR_PID_KI 0.01     // Kp/10
-#define MOTOR_PID_KD 0.001    // Kp/100
-#define PID_SAMPLE_TIME 20    // 20ms (50Hz)
-#define ENCODER_PPR 12        // Pulses per revolution
-#define MIN_RPM 30           // Minimum RPM for reliable operation
-#define MAX_RPM 200          // Maximum RPM expected
-#define RPM_CALC_INTERVAL 100 // How often to calculate RPM (ms)
+#define MOTOR_PID_KP 0.5       // Reduce proportional gain
+#define MOTOR_PID_KI 0.2       // Reduce integral gain
+#define MOTOR_PID_KD 0.01      // Add small derivative gain
+#define PID_SAMPLE_TIME 50     // Increase sample time
+#define ENCODER_PPR 20
+#define MIN_RPM 30
+#define MAX_RPM 300
+#define RPM_CALC_INTERVAL 100  // Keep this the same
 
 // Define FILTERED_CONTEXTS
 #define FILTERED_CONTEXTS 0

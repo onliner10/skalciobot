@@ -6,13 +6,13 @@ void RobotLogic::begin() {
 }
 
 void RobotLogic::update() {
-    if (!active || manualMode) {
-        return;
+    if (!isAutonomous) {
+        return;  // Only run autonomous logic when enabled
     }
 
-    // Check if stuck (both encoders near zero)
-    if (abs(motors.getLeftRpm()) < STUCK_RPM_THRESHOLD && 
-        abs(motors.getRightRpm()) < STUCK_RPM_THRESHOLD) {
+    // Check if stuck (no pulses for a while)
+    if (motors.getLeftTimeSinceLastPulse() > 1000 && 
+        motors.getRightTimeSinceLastPulse() > 1000) {
         handleStuckState();
         return;
     }
@@ -48,7 +48,7 @@ void RobotLogic::update() {
     }
 
     motors.setSteering(steering);
-    motors.setRpm(calculateTargetRpm(front));
+    motors.setPwm(calculateTargetSpeed(front));
 }
 
 void RobotLogic::handleStuckState() {
@@ -60,57 +60,15 @@ void RobotLogic::handleStuckState() {
     recoveryPhase = RecoveryPhase::Backing;
     
     // Start backing up
-    motors.setRpm(-MAX_RPM);
+    motors.setPwm(-255);  // Full reverse
     motors.setSteering(0);
 }
 
-void RobotLogic::setActive(bool state) {
-    logger.info(state ? "Activating autonomous mode" : "Deactivating autonomous mode",
-                LogContext::ModeSwitch);
-    active = state;
-    if (!state) {
-        motors.stop();
-    }
-}
-
-void RobotLogic::setManualMode(bool manual) {
-    manualMode = manual;
-    if (manual) {
-        motors.stop();
-    }
-}
-
-float RobotLogic::calculateSteering(uint16_t left, uint16_t right) {
-    // Use exponential decay based on distance
-    // e^(-kx) where k is TURN_EXPONENT and x is distance in mm
-    float leftTurn = exp(-TURN_EXPONENT * left);
-    float rightTurn = exp(-TURN_EXPONENT * right);
-    
-    // When distance = MIN_TURN_DISTANCE (150mm), turn factor should be ~1.0
-    // When distance = 500mm, turn factor should be ~0.1
-    // When distance = 1000mm, turn factor should be ~0.01
-    
-    return rightTurn - leftTurn;
-}
-
-float RobotLogic::calculateFrontMultiplier(uint16_t front) {
-    if (front >= MAX_TURN_DISTANCE) return 1.0f;
-    
-    float normalizedDist = (float)(front - MIN_TURN_DISTANCE) / 
-                          (float)(MAX_TURN_DISTANCE - MIN_TURN_DISTANCE);
-    normalizedDist = constrain(normalizedDist, 0.0f, 1.0f);
-    
-    return 1.0f + ((FRONT_MULTIPLIER_MAX - 1.0f) * (1.0f - normalizedDist));
-}
-
-double RobotLogic::calculateTargetRpm(uint16_t front) {
-    return map(
-        constrain(front, MIN_SPEED_DISTANCE, MAX_SPEED_DISTANCE),
-        MIN_SPEED_DISTANCE,
-        MAX_SPEED_DISTANCE,
-        MIN_RPM,
-        MAX_RPM
-    );
+void RobotLogic::setAuto(bool enabled) {
+    if (isAutonomous == enabled) return;
+    isAutonomous = enabled;
+    motors.stop();
+    logger.info("Mode: " + String(enabled ? "AUTO" : "MANUAL"), LogContext::ModeSwitch);
 }
 
 void RobotLogic::updateRecoveryManeuver() {
@@ -123,7 +81,7 @@ void RobotLogic::updateRecoveryManeuver() {
                 // Switch to turning
                 recoveryPhase = RecoveryPhase::Turning;
                 recoveryStartTime = currentTime;
-                motors.setRpm(MAX_RPM * 0.5);  // Half speed for turning
+                motors.setPwm(128);  // Half speed PWM for turning
                 motors.setSteering(random(2) ? 1.0f : -1.0f);
             }
             break;
@@ -136,4 +94,29 @@ void RobotLogic::updateRecoveryManeuver() {
             }
             break;
     }
+}
+
+float RobotLogic::calculateSteering(uint16_t left, uint16_t right) {
+    // Use exponential decay based on distance
+    float leftTurn = exp(-TURN_EXPONENT * left);
+    float rightTurn = exp(-TURN_EXPONENT * right);
+    return rightTurn - leftTurn;  // Positive = turn right, negative = turn left
+}
+
+float RobotLogic::calculateFrontMultiplier(uint16_t front) {
+    if (front >= MAX_TURN_DISTANCE) return 1.0f;
+    
+    float normalizedDist = (float)(front - MIN_TURN_DISTANCE) / 
+                          (float)(MAX_TURN_DISTANCE - MIN_TURN_DISTANCE);
+    return 1.0f + ((FRONT_MULTIPLIER_MAX - 1.0f) * (1.0f - constrain(normalizedDist, 0.0f, 1.0f)));
+}
+
+int RobotLogic::calculateTargetSpeed(uint16_t front) {
+    return map(
+        constrain(front, MIN_SPEED_DISTANCE, MAX_SPEED_DISTANCE),
+        MIN_SPEED_DISTANCE,
+        MAX_SPEED_DISTANCE,
+        128,  // Half speed PWM
+        255   // Full speed PWM
+    );
 }

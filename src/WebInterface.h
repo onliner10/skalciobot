@@ -10,13 +10,17 @@ private:
     WebServer& server;
     RobotLogic& robot;
     MotorController& motors;
+    Motor& leftMotor;
+    Motor& rightMotor;
     DistanceSensors& sensors;
     WebLogger& webLogger;
 
 public:
-    WebInterface(WebServer& srv, RobotLogic& r, MotorController& m, DistanceSensors& s, WebLogger& wl)
-        : server(srv), robot(r), motors(m), sensors(s), webLogger(wl) {}
+    WebInterface(WebServer& srv, RobotLogic& r, MotorController& m, 
+                Motor& left, Motor& right, DistanceSensors& s, WebLogger& wl)
+        : server(srv), robot(r), motors(m), 
+          leftMotor(left), rightMotor(right), sensors(s), webLogger(wl) {}
 
     void begin();
-    void handle() { server.handleClient(); }  // Add handle method
+    void handle() { server.handleClient(); }
 };

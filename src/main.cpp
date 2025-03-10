@@ -20,8 +20,8 @@ WebLogger* webLogger = new WebLogger(ledLogger);  // Fix null to nullptr
 LogLevelDecorator* levelLogger = new LogLevelDecorator(webLogger, LOG_LEVEL, FILTERED_CONTEXTS);
 
 // Create motor instances
-Motor leftMotor(LEFT_MOTOR_IN1, LEFT_MOTOR_IN2, ENCODER_LEFT);
-Motor rightMotor(RIGHT_MOTOR_IN1, RIGHT_MOTOR_IN2, ENCODER_RIGHT);
+Motor leftMotor(LEFT_MOTOR_IN1, LEFT_MOTOR_IN2, ENCODER_LEFT, *levelLogger);
+Motor rightMotor(RIGHT_MOTOR_IN1, RIGHT_MOTOR_IN2, ENCODER_RIGHT, *levelLogger);
 
 // Create core components with logger
 MotorController motors(leftMotor, rightMotor, MOTOR_SLEEP, MOTOR_FLT);
@@ -33,7 +33,7 @@ WebServer otaServer(80);        // OTA updates
 WebServer appServer(8080);      // Main application
 
 // Create web interface with webLogger (using application server)
-WebInterface web(appServer, robot, motors, sensors, *webLogger);
+WebInterface web(appServer, robot, motors, leftMotor, rightMotor, sensors, *webLogger);
 
 unsigned long ota_progress_millis = 0;
 
@@ -104,6 +104,8 @@ void setup() {
 
 void loop() {
     sensors.update();  // Keep cycling through sensors
+    leftMotor.update();  // Add motor updates
+    rightMotor.update();
     robot.update();
     levelLogger->update();  // Update logger chain
     

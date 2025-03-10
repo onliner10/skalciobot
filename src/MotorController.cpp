@@ -5,18 +5,20 @@ MotorController::MotorController(Motor& left, Motor& right, int slp, int flt)
 
 void MotorController::begin() {
     pinMode(sleepPin, OUTPUT);
-    pinMode(faultPin, INPUT);
-    digitalWrite(sleepPin, LOW);  // Start with drivers disabled
+    pinMode(faultPin, INPUT_PULLUP);  // Add internal pullup for open-drain output
+    
+    // Start with motors disabled
+    digitalWrite(sleepPin, LOW);
+    
     leftMotor.begin();
     rightMotor.begin();
 }
 
-void MotorController::setRpm(double rpm) {
-    currentRpm = constrain(rpm, -MAX_RPM, MAX_RPM);
-    // Enable drivers BEFORE setting RPM, disable only when explicitly stopped
-    if (currentRpm != 0) {
-        digitalWrite(sleepPin, HIGH);
-        delay(1);  // Brief delay to let driver enable
+void MotorController::setPwm(int pwm) {
+    currentPwm = constrain(pwm, -255, 255);
+    if (currentPwm != 0) {
+        enable();  // Enable motors when setting non-zero PWM
+        delay(1);
     }
     updateMotors();
 }
@@ -27,21 +29,23 @@ void MotorController::setSteering(float steering) {
 }
 
 void MotorController::updateMotors() {
-    // When steering is zero, both motors run at full target RPM
-    // When turning, outer wheel maintains speed while inner wheel reduces
-    double leftRpm = currentRpm;
-    double rightRpm = currentRpm;
+    if (isFault()) {
+        stop();
+        return;
+    }
+
+    int leftPwm = currentPwm;
+    int rightPwm = currentPwm;
     
+    // Steering is already in correct direction: -1 (left) to 1 (right)
     if (currentSteering > 0) {  // Turning right
-        leftRpm = currentRpm;   // Outer wheel maintains speed
-        rightRpm = currentRpm * (1.0f - currentSteering);  // Inner wheel reduces
+        rightPwm = int(rightPwm * (1.0f - currentSteering));  // Reduce inner wheel
     } else if (currentSteering < 0) {  // Turning left
-        leftRpm = currentRpm * (1.0f + currentSteering);   // Inner wheel reduces
-        rightRpm = currentRpm;  // Outer wheel maintains speed
+        leftPwm = int(leftPwm * (1.0f + currentSteering));    // Reduce inner wheel
     }
     
-    leftMotor.setRpm(leftRpm);
-    rightMotor.setRpm(rightRpm);
+    leftMotor.setPwm(leftPwm);
+    rightMotor.setPwm(rightPwm);
 }
 
 void MotorController::update() {
@@ -54,16 +58,15 @@ void MotorController::update() {
 }
 
 void MotorController::stop() {
-    // Stop motors first
     leftMotor.stop();
     rightMotor.stop();
-    currentRpm = 0;
+    currentPwm = 0;
     currentSteering = 0;
-    // Disable drivers after stopping
-    digitalWrite(sleepPin, LOW);
+    disable();  // Disable motors after stopping
 }
 
 bool MotorController::checkFault() {
+    // Fault is active LOW (open-drain output)
     return digitalRead(faultPin) == LOW;
 }
 

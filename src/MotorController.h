@@ -8,8 +8,8 @@ private:
     const int sleepPin;
     const int faultPin;
     
-    double currentRpm = 0;      // Overall RPM
-    float currentSteering = 0;  // -1 (full left) to 1 (full right)
+    int currentPwm = 0;        // Current PWM value (-255 to 255)
+    float currentSteering = 0; // -1 (full left) to 1 (full right)
     bool isFaulted = false;
     
     void updateMotors();
@@ -18,19 +18,23 @@ public:
     MotorController(Motor& left, Motor& right, int slp, int flt);
     
     void begin();
-    void setRpm(double rpm);          // -MAX_RPM to MAX_RPM
+    void setPwm(int pwm);            // -255 to 255
     void setSteering(float steering); // -1.0 to 1.0
     void update();                    // Call in loop
     void stop();
     bool checkFault();
     void sleep(bool enable);
     
-    double getRpm() const { return currentRpm; }
+    int getPwm() const { return currentPwm; }
     float getSteering() const { return currentSteering; }
 
-    // Add getters for motor RPMs
-    double getLeftRpm() const { return leftMotor.getRpm(); }
-    double getRightRpm() const { return rightMotor.getRpm(); }
+    // For stuck detection
+    unsigned long getLeftTimeSinceLastPulse() const { return leftMotor.getTimeSinceLastPulse(); }
+    unsigned long getRightTimeSinceLastPulse() const { return rightMotor.getTimeSinceLastPulse(); }
+
+    void enable() { digitalWrite(sleepPin, HIGH); }
+    void disable() { digitalWrite(sleepPin, LOW); }
+    bool isFault() const { return digitalRead(faultPin) == LOW; }
 
     void test() {
         digitalWrite(sleepPin, HIGH);  // Enable drivers
