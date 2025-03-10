@@ -23,6 +23,16 @@ void WebInterface::begin() {
             width: 80px;
             margin: 0 10px;
         }
+        .motor-stats {
+            font-family: monospace;
+            margin: 15px 0;
+        }
+        .motor-stats div {
+            margin: 5px 0;
+        }
+        .rpm-mismatch {
+            color: #ff4444;
+        }
     </style>
 </head>
 <body>
@@ -42,11 +52,14 @@ void WebInterface::begin() {
     </div>
     <div class="control-group">
         <h2>Motor Control</h2>
-        <div class="rpm-display">Left PWM: <span id="leftPwm">0</span> | Right PWM: <span id="rightPwm">0</span></div>
+        <div class="motor-stats">
+            <div>Status: <span id="motorStatus">Stopped</span></div>
+        </div>
         <button onclick="testMotors()">TEST MOTORS</button>
         <div class="control-input">
-            <label for="speed">Speed (-255 to 255):</label>
-            <input type="number" id="speed" min="-255" max="255" value="0">
+            <label for="speed">Speed (RPM):</label>
+            <input type="number" id="speed" value="0" min="-200" max="200">
+            <span>(-200 to 200 RPM)</span>
             <button onclick="updateSpeed()">Set Speed</button>
         </div>
         <div class="control-input">
@@ -114,15 +127,7 @@ void WebInterface::begin() {
                     document.getElementById("right").textContent = data.right;
                 });
         }
-        function updateMotorStatus() {
-            fetch("/motors/status")
-                .then(response => response.text())
-                .then(data => {
-                    const [leftPwm, rightPwm] = data.split(",").map(s => parseInt(s));
-                    document.getElementById("leftPwm").textContent = leftPwm;
-                    document.getElementById("rightPwm").textContent = rightPwm;
-                });
-        }
+
         function updateLogs() {
             fetch("/log")
                 .then(response => response.text())
@@ -176,7 +181,6 @@ void WebInterface::begin() {
 
         setInterval(updateState, 1000);
         setInterval(updateSensors, 2000);    // Sensors every 2s
-        setInterval(updateMotorStatus, 200);  // Motor status 5x per second
         setInterval(updateLogs, 1000);        // Logs every second
         stopMotors();
 
@@ -192,17 +196,12 @@ void WebInterface::begin() {
         }
 
         function updateSpeed() {
-            const input = document.getElementById("speed");
-            const value = parseInt(input.value);
-            if (isNaN(value) || value < -255 || value > 255) {
-                alert("Please enter a valid speed between -255 and 255");
+            const value = parseInt(document.getElementById("speed").value);
+            if (isNaN(value) || value < -200 || value > 200) {
+                alert("Please enter a valid RPM between -200 and 200");
                 return;
             }
-            
-            fetch("/motors/rpm?value=" + value).then(() => {
-                input.style.backgroundColor = "#e8ffe8";
-                setTimeout(() => input.style.backgroundColor = "", 500);
-            });
+            fetch("/motors/rpm?value=" + value);
         }
 
         function updateSteering() {
@@ -218,6 +217,11 @@ void WebInterface::begin() {
                 setTimeout(() => input.style.backgroundColor = "", 500);
             });
         }
+
+        document.querySelectorAll('input[name="controlMode"]').forEach(input => {
+            input.addEventListener('change', updateControlMode);
+        });
+        updateControlMode();
     </script>
     <style>
         .slider-container input[type="range"] {
@@ -308,12 +312,12 @@ void WebInterface::begin() {
         }
         
         if(server.hasArg("value")) {
-            int pwm = server.arg("value").toInt();
-            if (pwm >= -255 && pwm <= 255) {
-                motors.setPwm(pwm);
-                server.send(200, "text/plain", "PWM set to: " + String(pwm));
+            float rpm = server.arg("value").toFloat();
+            if (rpm >= -MOTOR_MAX_RPM && rpm <= MOTOR_MAX_RPM) {
+                motors.setRPM(rpm);
+                server.send(200, "text/plain", "RPM set to: " + String(rpm));
             } else {
-                server.send(400, "text/plain", "Invalid PWM value");
+                server.send(400, "text/plain", "Invalid RPM value");
             }
         }
     });
@@ -323,9 +327,12 @@ void WebInterface::begin() {
         server.send(200, "text/plain", "Motors stopped");
     });
 
-    // Update motors/status endpoint to return just PWM values
+    // Update motors/status endpoint to just return basic status:
     server.on("/motors/status", HTTP_GET, [this]() {
-        String status = String(leftMotor.getCurrentPwm()) + "," + String(rightMotor.getCurrentPwm());
+        String status = "Stopped";
+        if (leftMotor.getCurrentRPM() != 0 || rightMotor.getCurrentRPM() != 0) {
+            status = "Running";
+        }
         server.send(200, "text/plain", status);
     });
 
@@ -385,7 +392,7 @@ Right Motor:
   Current PWM: ${data.right.pwm}</pre>`;
                 });
         }
-        setInterval(updateMotorData, 100);
+        //setInterval(updateMotorData, 1000);
     </script>
 </body>
 </html>

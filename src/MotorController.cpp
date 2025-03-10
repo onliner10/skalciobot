@@ -1,7 +1,7 @@
 #include "MotorController.h"
 
-MotorController::MotorController(Motor& left, Motor& right, int slp, int flt, RobotState& s)
-    : leftMotor(left), rightMotor(right), sleepPin(slp), faultPin(flt), state(s) {}
+MotorController::MotorController(Motor& left, Motor& right, int slp, int flt, RobotState& s, Logger& log)
+    : leftMotor(left), rightMotor(right), sleepPin(slp), faultPin(flt), state(s), logger(log) {}
 
 void MotorController::begin() {
     pinMode(sleepPin, OUTPUT);
@@ -28,24 +28,38 @@ void MotorController::setSteering(float steering) {
     updateMotors();
 }
 
+void MotorController::setRPM(float rpm) {
+    currentRPM = constrain(rpm, -MAX_RPM, MAX_RPM);
+    if (currentRPM != 0) {
+        enable();
+        delay(1);
+    }
+    updateMotors();
+}
+
 void MotorController::updateMotors() {
     if (!state.isEnabled() || isFault()) {
         stop();
         return;
     }
 
-    int leftPwm = currentPwm;
-    int rightPwm = currentPwm;
+    // Calculate base RPM for each motor
+    float targetLeft = currentRPM;
+    float targetRight = currentRPM;
     
-    // Steering is already in correct direction: -1 (left) to 1 (right)
+    // Apply steering - positive steering = turn right (reduce right motor)
     if (currentSteering > 0) {  // Turning right
-        rightPwm = int(rightPwm * (1.0f - currentSteering));  // Reduce inner wheel
+        targetRight *= (1.0f - currentSteering);
     } else if (currentSteering < 0) {  // Turning left
-        leftPwm = int(leftPwm * (1.0f + currentSteering));    // Reduce inner wheel
+        targetLeft *= (1.0f + currentSteering);
     }
     
-    leftMotor.setPwm(leftPwm);
-    rightMotor.setPwm(rightPwm);
+    // Apply RPM to both motors
+    if (targetLeft != 0) enable();
+    if (targetRight != 0) enable();
+    
+    leftMotor.setRPM(targetLeft);
+    rightMotor.setRPM(targetRight);
 }
 
 void MotorController::update() {

@@ -1,6 +1,7 @@
 #pragma once
 #include "Motor.h"
 #include "RobotState.h"
+#include "Logger.h"
 
 class MotorController {
 private:
@@ -8,16 +9,19 @@ private:
     Motor& rightMotor;
     const int sleepPin;
     const int faultPin;
+    Logger& logger;
     
     int currentPwm = 0;        // Current PWM value (-255 to 255)
     float currentSteering = 0; // -1 (full left) to 1 (full right)
     bool isFaulted = false;
+    float currentRPM = 0;      // Base RPM value
+    static constexpr float MAX_RPM = 600.0f;
     
     void updateMotors();
     RobotState& state;
 
 public:
-    MotorController(Motor& left, Motor& right, int slp, int flt, RobotState& s);
+    MotorController(Motor& left, Motor& right, int slp, int flt, RobotState& s, Logger& log);
     
     void begin();
     void setPwm(int pwm);            // -255 to 255
@@ -29,6 +33,8 @@ public:
     
     int getPwm() const { return currentPwm; }
     float getSteering() const { return currentSteering; }
+    void setRPM(float rpm);            // -MAX_RPM to MAX_RPM
+    float getRPM() const { return currentRPM; }
 
     // For stuck detection
     unsigned long getLeftTimeSinceLastPulse() const { return leftMotor.getTimeSinceLastPulse(); }

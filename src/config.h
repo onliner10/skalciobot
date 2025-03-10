@@ -56,3 +56,20 @@
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 2
 #endif
+
+// Motor control configuration
+#define MOTOR_UPDATE_INTERVAL 50    // Motor control update interval (ms)
+#define MOTOR_PWM_RESOLUTION 8      // PWM resolution bits
+#define MOTOR_MAX_RPM 200.0f       
+#define MOTOR_PULSES_PER_REV 20.0f // Encoder pulses per revolution
+
+// PID control constants
+// Left motor
+#define LEFT_MOTOR_PID_KP 1.14f
+#define LEFT_MOTOR_PID_KI 0.2f
+#define LEFT_MOTOR_PID_KD 0.14f
+
+// Right motor
+#define RIGHT_MOTOR_PID_KP 1.39f
+#define RIGHT_MOTOR_PID_KI 0.21f
+#define RIGHT_MOTOR_PID_KD 0.3f
