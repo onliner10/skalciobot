@@ -1,5 +1,6 @@
 #pragma once
 #include "Motor.h"
+#include "RobotState.h"
 
 class MotorController {
 private:
@@ -13,9 +14,10 @@ private:
     bool isFaulted = false;
     
     void updateMotors();
+    RobotState& state;
 
 public:
-    MotorController(Motor& left, Motor& right, int slp, int flt);
+    MotorController(Motor& left, Motor& right, int slp, int flt, RobotState& s);
     
     void begin();
     void setPwm(int pwm);            // -255 to 255

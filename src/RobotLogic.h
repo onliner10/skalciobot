@@ -2,6 +2,7 @@
 #include "MotorController.h"
 #include "DistanceSensors.h"
 #include "Logger.h"
+#include "RobotState.h"
 #include "config.h"
 
 enum class RecoveryPhase {
@@ -14,7 +15,7 @@ private:
     MotorController& motors;
     DistanceSensors& sensors;
     Logger& logger;
-    bool isAutonomous = false;
+    RobotState& state;
 
     // Recovery state
     bool isPerformingRecovery = false;
@@ -30,15 +31,13 @@ private:
     void updateRecoveryManeuver();
 
 public:
-    RobotLogic(MotorController& m, DistanceSensors& s, Logger& l) 
-        : motors(m), sensors(s), logger(l), isAutonomous(false) {}
+    RobotLogic(MotorController& m, DistanceSensors& s, Logger& l, RobotState& st)
+        : motors(m), sensors(s), logger(l), state(st) {}
     
     void begin();
-    void update();
-    bool isAuto() const { return isAutonomous; }
-    void setAuto(bool enabled);  // Move implementation to cpp
-    bool toggleMode() { 
-        setAuto(!isAutonomous);
-        return !isAutonomous;  // Return true for MANUAL
-    }
+    void update();  // Move implementation to cpp
+    bool isAuto() const { return state.isAuto(); }
+    bool isManual() const { return state.isManual(); }
+    bool isOff() const { return state.isOff(); }
+    void setState(OperationMode newMode) { state.setMode(newMode); }
 };

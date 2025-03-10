@@ -16,6 +16,13 @@ void WebInterface::begin() {
         .rpm-display { font-size: 1.2em; margin: 10px 0; }
         nav { margin: 10px 0; }
         nav a { margin-right: 10px; }
+        .control-input {
+            margin: 10px 0;
+        }
+        .control-input input[type="number"] {
+            width: 80px;
+            margin: 0 10px;
+        }
     </style>
 </head>
 <body>
@@ -26,28 +33,26 @@ void WebInterface::begin() {
     <h1>Robot Control</h1>
     <div class="control-group">
         <h2>Mode Control</h2>
+        <div>Mode: <span id="mode">OFF</span></div>
         <div>
-            Mode: <span id="mode">MANUAL</span> | 
-            State: <span id="state">INACTIVE</span>
-        </div>
-        <div>
-            <button onclick="toggleMode()">Toggle Mode (Manual/Auto)</button>
-            <button onclick="toggleState()">Toggle State (Active/Inactive)</button>
+            <button onclick="setMode('OFF')">OFF</button>
+            <button onclick="setMode('MANUAL')">MANUAL</button>
+            <button onclick="setMode('AUTO')">AUTO</button>
         </div>
     </div>
     <div class="control-group">
         <h2>Motor Control</h2>
         <div class="rpm-display">Left PWM: <span id="leftPwm">0</span> | Right PWM: <span id="rightPwm">0</span></div>
         <button onclick="testMotors()">TEST MOTORS</button>
-        <div class="slider-container">
-            <label for="rpm">Speed (-255 to 255):</label>
-            <input type="range" id="rpm" min="-255" max="255" value="0" step="16" oninput="updateRpm(this.value)">
-            <span id="rpmValue">0</span>
+        <div class="control-input">
+            <label for="speed">Speed (-255 to 255):</label>
+            <input type="number" id="speed" min="-255" max="255" value="0">
+            <button onclick="updateSpeed()">Set Speed</button>
         </div>
-        <div class="slider-container">
+        <div class="control-input">
             <label for="steering">Steering (-100 to 100):</label>
-            <input type="range" id="steering" min="-100" max="100" value="0" step="5" oninput="updateSteering(this.value)">
-            <span id="steeringValue">0</span>
+            <input type="number" id="steering" min="-100" max="100" value="0">
+            <button onclick="updateSteering()">Set Steering</button>
         </div>
         <button onclick="stopMotors()">STOP</button>
     </div>
@@ -66,16 +71,19 @@ void WebInterface::begin() {
         let lastSteeringUpdate = 0;
         const THROTTLE_MS = 100;  // Only send one command per 100ms
 
-        function updateRpm(value) {
-            document.getElementById("rpmValue").textContent = value;
-            
-            const now = Date.now();
-            if (now - lastRpmUpdate > THROTTLE_MS) {
-                lastRpmUpdate = now;
-                fetch("/motors/rpm?value=" + value);
-                document.getElementById("rpm").style.opacity = "0.7";
-                setTimeout(() => document.getElementById("rpm").style.opacity = "1", 100);
+        function updateRpm() {
+            const input = document.getElementById("rpm");
+            const value = parseInt(input.value);
+            if (isNaN(value) || value < -255 || value > 255) {
+                alert("Please enter a valid speed between -255 and 255");
+                return;
             }
+            
+            document.getElementById("rpmValue").textContent = value;
+            fetch("/motors/rpm?value=" + value).then(() => {
+                input.style.backgroundColor = "#e8ffe8";
+                setTimeout(() => input.style.backgroundColor = "", 500);
+            });
         }
 
         function updateSteering(value) {
@@ -158,11 +166,58 @@ void WebInterface::begin() {
                 });
         }
 
+        // Add keyboard event listener for the speed input
+        document.getElementById("rpm").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                updateRpm();
+            }
+        });
+
         setInterval(updateState, 1000);
         setInterval(updateSensors, 2000);    // Sensors every 2s
         setInterval(updateMotorStatus, 200);  // Motor status 5x per second
         setInterval(updateLogs, 1000);        // Logs every second
         stopMotors();
+
+        function setMode(mode) {
+            fetch("/mode/" + mode)
+                .then(response => response.text())
+                .then(newMode => {
+                    document.getElementById("mode").textContent = newMode;
+                    if (newMode !== "MANUAL") {
+                        stopMotors();
+                    }
+                });
+        }
+
+        function updateSpeed() {
+            const input = document.getElementById("speed");
+            const value = parseInt(input.value);
+            if (isNaN(value) || value < -255 || value > 255) {
+                alert("Please enter a valid speed between -255 and 255");
+                return;
+            }
+            
+            fetch("/motors/rpm?value=" + value).then(() => {
+                input.style.backgroundColor = "#e8ffe8";
+                setTimeout(() => input.style.backgroundColor = "", 500);
+            });
+        }
+
+        function updateSteering() {
+            const input = document.getElementById("steering");
+            const value = parseInt(input.value);
+            if (isNaN(value) || value < -100 || value > 100) {
+                alert("Please enter a valid steering value between -100 and 100");
+                return;
+            }
+            
+            fetch("/motors/steering?value=" + value).then(() => {
+                input.style.backgroundColor = "#e8ffe8";
+                setTimeout(() => input.style.backgroundColor = "", 500);
+            });
+        }
     </script>
     <style>
         .slider-container input[type="range"] {
@@ -184,12 +239,32 @@ void WebInterface::begin() {
     });
 
     server.on("/status", HTTP_GET, [this]() {
-        server.send(200, "text/plain", robot.isAuto() ? "AUTO" : "MANUAL");
+        const char* mode;
+        switch(robotState.getMode()) {
+            case OperationMode::Off: mode = "OFF"; break;
+            case OperationMode::Manual: mode = "MANUAL"; break;
+            case OperationMode::Auto: mode = "AUTO"; break;
+        }
+        server.send(200, "text/plain", mode);
     });
 
     server.on("/toggle", HTTP_GET, [this]() {
-        robot.toggleMode();
-        server.send(200, "text/plain", robot.isAuto() ? "AUTO" : "MANUAL");
+        // Cycle through states: OFF -> MANUAL -> AUTO -> OFF
+        switch(robotState.getMode()) {
+            case OperationMode::Off:
+                robotState.setMode(OperationMode::Manual);
+                break;
+            case OperationMode::Manual:
+                robotState.setMode(OperationMode::Auto);
+                break;
+            case OperationMode::Auto:
+                robotState.setMode(OperationMode::Off);
+                break;
+        }
+        motors.stop();
+        server.send(200, "text/plain", 
+            robotState.isOff() ? "OFF" : 
+            robotState.isManual() ? "MANUAL" : "AUTO");
     });
 
     server.on("/motors/test", HTTP_GET, [this]() {
@@ -227,7 +302,7 @@ void WebInterface::begin() {
     });
 
     server.on("/motors/rpm", HTTP_GET, [this]() {
-        if (robot.isAuto()) {
+        if (!robotState.isManual()) {
             server.send(400, "text/plain", "Must be in manual mode");
             return;
         }
@@ -255,9 +330,17 @@ void WebInterface::begin() {
     });
 
     server.on("/mode/toggle", HTTP_GET, [this]() {
-        bool isManual = robot.toggleMode();
-        motors.stop();  // Always stop motors when changing modes
-        server.send(200, "text/plain", isManual ? "MANUAL" : "AUTO");
+        if (robotState.isAuto()) {
+            robotState.setMode(OperationMode::Manual);
+        } else if (robotState.isManual()) {
+            robotState.setMode(OperationMode::Off);
+        } else {
+            robotState.setMode(OperationMode::Auto);
+        }
+        motors.stop();
+        server.send(200, "text/plain", 
+            robotState.isOff() ? "OFF" : 
+            robotState.isManual() ? "MANUAL" : "AUTO");
     });
 
     server.on("/log", HTTP_GET, [this]() {
@@ -324,5 +407,24 @@ Right Motor:
         json += "\"pwm\":" + String(rightMotor.getCurrentPwm());
         json += "}}";
         server.send(200, "application/json", json);
+    });
+
+    // Update endpoint to handle mode changes
+    server.on("/mode/OFF", HTTP_GET, [this]() {
+        robotState.setMode(OperationMode::Off);
+        motors.stop();
+        server.send(200, "text/plain", "OFF");
+    });
+
+    server.on("/mode/MANUAL", HTTP_GET, [this]() {
+        robotState.setMode(OperationMode::Manual);
+        motors.stop();
+        server.send(200, "text/plain", "MANUAL");
+    });
+
+    server.on("/mode/AUTO", HTTP_GET, [this]() {
+        robotState.setMode(OperationMode::Auto);
+        motors.stop();
+        server.send(200, "text/plain", "AUTO");
     });
 }

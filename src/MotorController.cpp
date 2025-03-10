@@ -1,7 +1,7 @@
 #include "MotorController.h"
 
-MotorController::MotorController(Motor& left, Motor& right, int slp, int flt)
-    : leftMotor(left), rightMotor(right), sleepPin(slp), faultPin(flt) {}
+MotorController::MotorController(Motor& left, Motor& right, int slp, int flt, RobotState& s)
+    : leftMotor(left), rightMotor(right), sleepPin(slp), faultPin(flt), state(s) {}
 
 void MotorController::begin() {
     pinMode(sleepPin, OUTPUT);
@@ -29,7 +29,7 @@ void MotorController::setSteering(float steering) {
 }
 
 void MotorController::updateMotors() {
-    if (isFault()) {
+    if (!state.isEnabled() || isFault()) {
         stop();
         return;
     }

@@ -19,21 +19,24 @@ LedLogger* ledLogger = new LedLogger(LED_BUILTIN, nullptr);  // Fix null to null
 WebLogger* webLogger = new WebLogger(ledLogger);  // Fix null to nullptr
 LogLevelDecorator* levelLogger = new LogLevelDecorator(webLogger, LOG_LEVEL, FILTERED_CONTEXTS);
 
+// Create shared robot state
+RobotState robotState(*levelLogger);
+
 // Create motor instances
 Motor leftMotor(LEFT_MOTOR_IN1, LEFT_MOTOR_IN2, ENCODER_LEFT, *levelLogger);
 Motor rightMotor(RIGHT_MOTOR_IN1, RIGHT_MOTOR_IN2, ENCODER_RIGHT, *levelLogger);
 
-// Create core components with logger
-MotorController motors(leftMotor, rightMotor, MOTOR_SLEEP, MOTOR_FLT);
+// Create core components with shared state
+MotorController motors(leftMotor, rightMotor, MOTOR_SLEEP, MOTOR_FLT, robotState);
 DistanceSensors sensors(*levelLogger);  // Pass logger to sensors
-RobotLogic robot(motors, sensors, *levelLogger);
+RobotLogic robot(motors, sensors, *levelLogger, robotState);
 
 // Create separate servers for OTA and application
 WebServer otaServer(80);        // OTA updates
 WebServer appServer(8080);      // Main application
 
-// Create web interface with webLogger (using application server)
-WebInterface web(appServer, robot, motors, leftMotor, rightMotor, sensors, *webLogger);
+// Create web interface with all dependencies
+WebInterface web(appServer, robot, motors, leftMotor, rightMotor, sensors, *webLogger, robotState);
 
 unsigned long ota_progress_millis = 0;
 

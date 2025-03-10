@@ -6,8 +6,8 @@ void RobotLogic::begin() {
 }
 
 void RobotLogic::update() {
-    if (!isAutonomous) {
-        return;  // Only run autonomous logic when enabled
+    if (!state.isAuto()) {
+        return;  // Only run autonomous logic in Auto mode
     }
 
     // Check if stuck (no pulses for a while)
@@ -62,13 +62,6 @@ void RobotLogic::handleStuckState() {
     // Start backing up
     motors.setPwm(-255);  // Full reverse
     motors.setSteering(0);
-}
-
-void RobotLogic::setAuto(bool enabled) {
-    if (isAutonomous == enabled) return;
-    isAutonomous = enabled;
-    motors.stop();
-    logger.info("Mode: " + String(enabled ? "AUTO" : "MANUAL"), LogContext::ModeSwitch);
 }
 
 void RobotLogic::updateRecoveryManeuver() {
