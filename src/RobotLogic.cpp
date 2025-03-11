@@ -18,32 +18,41 @@ void RobotLogic::update() {
     uint16_t left = sensors.getLeftDistance();
     uint16_t right = sensors.getRightDistance();
 
-    float steering = calculateSteering(left, right);
+    float steering = calculateSteering(left, right, front); // Pass front distance
     motors.setSteering(steering);
     motors.setSpeedPercent(calculateTargetSpeed(front));
     
     sensors.clearNewMeasurementsFlag();
 }
 
-float RobotLogic::calculateSteering(uint16_t left, uint16_t right) {
+float RobotLogic::calculateSteering(uint16_t left, uint16_t right, uint16_t front) {
     // Normalize distances to 0-1 range (0 = obstacle close, 1 = clear path)
     float leftClearance = constrain((float)left / MAX_SENSOR_DISTANCE, 0.0f, 1.0f);
     float rightClearance = constrain((float)right / MAX_SENSOR_DISTANCE, 0.0f, 1.0f);
     
-    // Calculate steering
-    // rightClearance - leftClearance means:
-    // - If right is clearer than left (rightClearance > leftClearance), go right (positive)
-    // - If left is clearer than right (leftClearance > rightClearance), go left (negative)
-    float steering = rightClearance - leftClearance;
+    // Calculate base steering from side sensors
+    // Use square root to make the response more gentle
+    float steering = sqrt(rightClearance) - sqrt(leftClearance);
     
-    // Add small deadzone
-    if (abs(steering) < 0.05f) return 0.0f;
+    // In near-deadzone situations (almost equal side clearances), 
+    // pick turn direction based on smallest noise difference
+    if (abs(steering) < 0.05f) {
+        steering = (left < right) ? -0.05f : 0.05f;
+    }
     
-    return steering;
+    // Get normalized front distance influence (0 = far, 1 = close)
+    // Start influence even earlier but make it more gradual
+    float frontInfluence = 1.0f - constrain((float)front / (MAX_SENSOR_DISTANCE * 0.9f), 0.0f, 1.0f);
+    
+    // Reduce multiplier from 0.5 to 0.35 for gentler influence
+    steering *= (1.0f + frontInfluence * 0.35f);  // Max 1.35x amplification when front is blocked
+    
+    return constrain(steering, -1.0f, 1.0f);
 }
 
 int RobotLogic::calculateTargetSpeed(uint16_t front) {
     // Linear speed control based on front distance
-    float speedFactor = (float)front / MAX_SENSOR_DISTANCE;
-    return MIN_SPEED_PERCENT + (speedFactor * (MAX_SPEED_PERCENT - MIN_SPEED_PERCENT));
+    // float speedFactor = (float)front / MAX_SENSOR_DISTANCE;
+    // return MIN_SPEED_PERCENT + (speedFactor * (MAX_SPEED_PERCENT - MIN_SPEED_PERCENT));
+    return MIN_SPEED_PERCENT;
 }

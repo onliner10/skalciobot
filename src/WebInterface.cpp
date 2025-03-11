@@ -171,7 +171,7 @@ void WebInterface::begin() {
 
         function startSensorUpdates() {
             updateSensors(); // Update immediately
-            sensorUpdateInterval = setInterval(updateSensors, 2000);
+            sensorUpdateInterval = setInterval(updateSensors, 250);
         }
 
         function stopSensorUpdates() {

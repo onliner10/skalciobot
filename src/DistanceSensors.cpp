@@ -33,10 +33,10 @@ void DistanceSensors::update() {
         uint16_t leftDist = leftSensor.getDist_mm();
         uint16_t rightDist = rightSensor.getDist_mm();
         
-        // Store readings with error handling
-        lastMeasurements[FRONT_SENSOR] = frontDist > 0 ? frontDist : MAX_SENSOR_DISTANCE;
-        lastMeasurements[LEFT_SENSOR] = leftDist > 0 ? leftDist : MAX_SENSOR_DISTANCE;
-        lastMeasurements[RIGHT_SENSOR] = rightDist > 0 ? rightDist : MAX_SENSOR_DISTANCE;
+        // Store readings with error handling and MAX_SENSOR_DISTANCE constraint
+        lastMeasurements[FRONT_SENSOR] = frontDist > 0 ? min(frontDist, (uint16_t)MAX_SENSOR_DISTANCE) : (uint16_t)MAX_SENSOR_DISTANCE;
+        lastMeasurements[LEFT_SENSOR] = leftDist > 0 ? min(leftDist, (uint16_t)MAX_SENSOR_DISTANCE) : (uint16_t)MAX_SENSOR_DISTANCE;
+        lastMeasurements[RIGHT_SENSOR] = rightDist > 0 ? min(rightDist, (uint16_t)MAX_SENSOR_DISTANCE) : (uint16_t)MAX_SENSOR_DISTANCE;
 
         // Log errors if any
         if (frontDist == 0) logger.debug("Front sensor - No echo", LogContext::Sensor);

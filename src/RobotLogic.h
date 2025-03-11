@@ -12,7 +12,7 @@ private:
     Logger& logger;
     RobotState& state;
 
-    float calculateSteering(uint16_t left, uint16_t right);
+    float calculateSteering(uint16_t left, uint16_t right, uint16_t front);
     float calculateFrontMultiplier(uint16_t front);
     int calculateTargetSpeed(uint16_t front);
 

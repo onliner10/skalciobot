@@ -28,12 +28,12 @@
 #define NUM_SENSORS 3
 #define SENSOR_READ_INTERVAL 20    // Time between measurement groups
 #define SENSOR_READ_TIMEOUT 15     // Max time to wait for echo (15ms = ~250cm)
-#define MAX_SENSOR_DISTANCE 2000     
+#define MAX_SENSOR_DISTANCE 1000     
 #define MIN_FRONT_STEERING 0.3f
 
 // Speed control
-#define MIN_SPEED_PERCENT 50      
-#define MAX_SPEED_PERCENT 100     // Back to full speed
+#define MIN_SPEED_PERCENT 60      
+#define MAX_SPEED_PERCENT 50     // Back to full speed
 
 // Debug configuration
 #define ENABLE_DEBUG_LOGS true    // Set to false to disable debug messages
