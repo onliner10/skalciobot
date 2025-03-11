@@ -24,26 +24,23 @@
 #define RIGHT_ECHO_PIN GPIO_NUM_33
 #define RIGHT_TRIG_PIN GPIO_NUM_32
 
-// Add this for DistanceSensors
+// Basic configuration
 #define NUM_SENSORS 3
+#define SENSOR_READ_INTERVAL 50
+#define SENSOR_READ_TIMEOUT 100
+#define MAX_SENSOR_DISTANCE 2000     
+#define FRONT_AMPLIFICATION 1.25f
+#define FRONT_MIN_DISTANCE 200       
+#define FRONT_START_DISTANCE 800     
+#define MIN_FRONT_STEERING 0.3f
 
-// Sensor timing (in milliseconds)
-#define SENSOR_READ_INTERVAL 50    // Minimum time between sensor reads
-#define SENSOR_READ_TIMEOUT 100    // Maximum age of sensor readings
-
-// Speed control configuration
-#define MIN_SPEED_DISTANCE 300   // Distance at which to use minimum speed (mm)
-#define MAX_SPEED_DISTANCE 1000  // Distance at which to use maximum speed (mm)
+// Speed control
+#define MIN_SPEED_PERCENT 50      
+#define MAX_SPEED_PERCENT 100     // Back to full speed
 
 // Debug configuration
 #define ENABLE_DEBUG_LOGS true    // Set to false to disable debug messages
 #define LOG_LEVEL LogLevel::Info  // Enable debug logs
-
-// Navigation constants
-#define MIN_TURN_DISTANCE 150     // 15cm - will cause full turn
-#define TURN_EXPONENT 0.005      // Decreased for gentler response curve
-#define FRONT_MULTIPLIER_MAX 2.0  // Maximum turn multiplier from front sensor
-#define MAX_TURN_DISTANCE 700     // Increased detection range
 
 // Define FILTERED_CONTEXTS
 #define FILTERED_CONTEXTS 0

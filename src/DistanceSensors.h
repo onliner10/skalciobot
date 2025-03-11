@@ -20,7 +20,7 @@ private:
     
     bool measurementStarted = false;
     unsigned long nextMeasurementTime = 0;
-    static constexpr unsigned long MEASUREMENT_SPACING = 50;  // ms between measurements
+    static constexpr unsigned long MEASUREMENT_SPACING = 30;  // ms between measurements
 
 public:
     DistanceSensors(Logger& l) 

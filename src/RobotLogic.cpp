@@ -14,62 +14,51 @@ void RobotLogic::update() {
     uint16_t left = sensors.getLeftDistance();
     uint16_t right = sensors.getRightDistance();
 
-    // Calculate base steering from side sensors
     float steering = calculateSteering(left, right);
     
-    // Handle front obstacle
-    if (front < MAX_TURN_DISTANCE) {
-        float frontMultiplier = calculateFrontMultiplier(front);
-        
-        // Only randomize direction if we're exactly straight
-        if (steering == 0) {
-            logger.info("Front obstacle detected while straight, selecting random direction", 
-                       LogContext::Navigation);
-            steering = (random(2) ? 0.5f : -0.5f);
-        }
-        
-        steering *= frontMultiplier;
-        steering = constrain(steering, -1.0f, 1.0f);
-        
-        logger.debug("Front obstacle influence - multiplier: " + String(frontMultiplier) + 
-                    ", final steering: " + String(steering), LogContext::Navigation);
+    // If front obstacle detected and steering is too small, force minimum steering
+    if (front < FRONT_START_DISTANCE && abs(steering) < MIN_FRONT_STEERING) {
+        steering = (steering >= 0 ? MIN_FRONT_STEERING : -MIN_FRONT_STEERING);
     }
-
+    
+    // Apply front multiplier and constrain
+    steering *= calculateFrontMultiplier(front);
+    steering = constrain(steering, -1.0f, 1.0f);
+    
     motors.setSteering(steering);
     motors.setSpeedPercent(calculateTargetSpeed(front));
 }
 
 float RobotLogic::calculateSteering(uint16_t left, uint16_t right) {
-    // Calculate normalized distances (0 = very close, 1 = far)
-    float leftNorm = (float)left / MAX_TURN_DISTANCE;
-    float rightNorm = (float)right / MAX_TURN_DISTANCE;
+    // Convert to 0-1 range where 1 means closest to obstacle
+    float leftInfluence = 1.0f - ((float)left / MAX_SENSOR_DISTANCE);
+    float rightInfluence = 1.0f - ((float)right / MAX_SENSOR_DISTANCE);
     
-    // Calculate turn strengths (inverse of distance)
-    float leftTurn = 1.0f - constrain(leftNorm, 0.0f, 1.0f);
-    float rightTurn = 1.0f - constrain(rightNorm, 0.0f, 1.0f);
+    // Apply gentle curve: f(x) = x + (x^2)*0.4
+    // This creates a curve that's between linear and quadratic
+    leftInfluence = leftInfluence + (leftInfluence * leftInfluence) * 0.35f;
+    rightInfluence = rightInfluence + (rightInfluence * rightInfluence) * 0.35f;
     
-    // Apply exponential response curve
-    leftTurn = pow(leftTurn, TURN_EXPONENT * 200);  // Multiplier to make exponent more effective
-    rightTurn = pow(rightTurn, TURN_EXPONENT * 200);
-    
-    // Return difference (positive = turn right, negative = turn left)
-    return leftTurn - rightTurn;
+    return leftInfluence - rightInfluence;  // Positive = turn right, negative = turn left
 }
 
 float RobotLogic::calculateFrontMultiplier(uint16_t front) {
-    if (front >= MAX_TURN_DISTANCE) return 1.0f;
+    if (front >= FRONT_START_DISTANCE) return 1.0f;
+    if (front <= FRONT_MIN_DISTANCE) return FRONT_AMPLIFICATION;
     
-    float normalizedDist = (float)(front - MIN_TURN_DISTANCE) / 
-                          (float)(MAX_TURN_DISTANCE - MIN_TURN_DISTANCE);
-    return 1.0f + ((FRONT_MULTIPLIER_MAX - 1.0f) * (1.0f - constrain(normalizedDist, 0.0f, 1.0f)));
+    // Calculate normalized distance between min and start points (0.0 - 1.0)
+    float normalized = (float)(front - FRONT_MIN_DISTANCE) / 
+                      (float)(FRONT_START_DISTANCE - FRONT_MIN_DISTANCE);
+    
+    // Apply exponential curve (use normalized^2 for faster growth near obstacles)
+    float factor = 1.0f - (normalized * normalized);
+    
+    // Calculate final multiplier
+    return 1.0f + (factor * (FRONT_AMPLIFICATION - 1.0f));
 }
 
 int RobotLogic::calculateTargetSpeed(uint16_t front) {
-    return map(
-        constrain(front, MIN_SPEED_DISTANCE, MAX_SPEED_DISTANCE),
-        MIN_SPEED_DISTANCE,
-        MAX_SPEED_DISTANCE,
-        0,   // Half speed (50%)
-        100   // Full speed (100%)
-    );
+    // Linear speed control based on front distance
+    float speedFactor = (float)front / MAX_SENSOR_DISTANCE;
+    return MIN_SPEED_PERCENT + (speedFactor * (MAX_SPEED_PERCENT - MIN_SPEED_PERCENT));
 }
