@@ -21,6 +21,7 @@ private:
     bool measurementStarted = false;
     unsigned long nextMeasurementTime = 0;
     static constexpr unsigned long MEASUREMENT_SPACING = 30;  // ms between measurements
+    bool measurementUpdated = false;
 
 public:
     DistanceSensors(Logger& l) 
@@ -44,4 +45,6 @@ public:
     uint16_t getLeftDistance() const { return lastMeasurements[LEFT_SENSOR]; }
     uint16_t getRightDistance() const { return lastMeasurements[RIGHT_SENSOR]; }
     unsigned long getLastReadTime(int sensor) const { return lastReadTime[sensor]; }
+    bool hasNewMeasurements() const { return measurementUpdated; }
+    void clearNewMeasurementsFlag() { measurementUpdated = false; }
 };

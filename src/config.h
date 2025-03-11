@@ -29,9 +29,10 @@
 #define SENSOR_READ_INTERVAL 50
 #define SENSOR_READ_TIMEOUT 100
 #define MAX_SENSOR_DISTANCE 2000     
-#define FRONT_AMPLIFICATION 1.25f
-#define FRONT_MIN_DISTANCE 200       
-#define FRONT_START_DISTANCE 800     
+#define FRONT_AMPLIFICATION 1.35f
+#define FRONT_MIN_DISTANCE 150       // Absolute minimum distance before max amplification
+#define FRONT_AGGRESSIVE_DISTANCE 300 // Distance where aggressive turning starts
+#define FRONT_START_DISTANCE 800     // Distance where any turning starts
 #define MIN_FRONT_STEERING 0.3f
 
 // Speed control
@@ -59,13 +60,13 @@
 // Motor PWM control
 #define MOTOR_PWM_MIN_UPDATE_INTERVAL 5     // Reduced from 20ms to 5ms
 #define MOTOR_PWM_MIN_CHANGE 2              // Reduced from 5 to 2
-#define MOTOR_PWM_SMOOTHING 0.2f           // Output smoothing factor (0-1)
+#define MOTOR_PWM_SMOOTHING 0.1f           // Output smoothing factor (0-1)
 
 // Steering PID configuration
 #define STEERING_PID_KP 1.0f    // Full opposing motor speeds at maximum error
 #define STEERING_PID_KI 0.05f    // Start without integral term
 #define STEERING_PID_KD 0.2f    // Start without derivative term
-#define STEERING_PID_INTERVAL 50 // PID update interval in milliseconds
+#define STEERING_PID_INTERVAL 10 // PID update interval in milliseconds
 #define STEERING_INTEGRAL_LIMIT 1.0f // Limit for integral term
 
 // Motor calibration

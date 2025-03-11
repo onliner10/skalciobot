@@ -10,6 +10,10 @@ void RobotLogic::update() {
         return;  // Only run autonomous logic in Auto mode
     }
 
+    if (!sensors.hasNewMeasurements()) {
+        return;  // Only update when new measurements are available
+    }
+
     uint16_t front = sensors.getFrontDistance();
     uint16_t left = sensors.getLeftDistance();
     uint16_t right = sensors.getRightDistance();
@@ -27,6 +31,8 @@ void RobotLogic::update() {
     
     motors.setSteering(steering);
     motors.setSpeedPercent(calculateTargetSpeed(front));
+    
+    sensors.clearNewMeasurementsFlag();
 }
 
 float RobotLogic::calculateSteering(uint16_t left, uint16_t right) {
@@ -46,14 +52,21 @@ float RobotLogic::calculateFrontMultiplier(uint16_t front) {
     if (front >= FRONT_START_DISTANCE) return 1.0f;
     if (front <= FRONT_MIN_DISTANCE) return FRONT_AMPLIFICATION;
     
-    // Calculate normalized distance between min and start points (0.0 - 1.0)
-    float normalized = (float)(front - FRONT_MIN_DISTANCE) / 
-                      (float)(FRONT_START_DISTANCE - FRONT_MIN_DISTANCE);
+    float normalized;
+    float factor;
     
-    // Apply exponential curve (use normalized^2 for faster growth near obstacles)
-    float factor = 1.0f - (normalized * normalized);
+    if (front < FRONT_AGGRESSIVE_DISTANCE) {
+        // Aggressive response below 300mm
+        normalized = (float)(front - FRONT_MIN_DISTANCE) / 
+                    (float)(FRONT_AGGRESSIVE_DISTANCE - FRONT_MIN_DISTANCE);
+        factor = 1.0f - (normalized * normalized * normalized); // Cubic for sharp response
+    } else {
+        // Very gentle response above 300mm
+        normalized = (float)(front - FRONT_AGGRESSIVE_DISTANCE) / 
+                    (float)(FRONT_START_DISTANCE - FRONT_AGGRESSIVE_DISTANCE);
+        factor = 0.15f * (1.0f - pow(normalized, 0.5f)); // Square root for very gradual change with reduced impact
+    }
     
-    // Calculate final multiplier
     return 1.0f + (factor * (FRONT_AMPLIFICATION - 1.0f));
 }
 
