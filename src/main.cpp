@@ -79,7 +79,7 @@ void setup() {
 
 void loop() {
     sensors.update();
-    // Remove motors.update() since PID is now timer-driven
+    motors.update();  // Restore this line
     robot.update();
     levelLogger->update();
     

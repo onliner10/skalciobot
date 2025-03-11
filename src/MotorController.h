@@ -3,9 +3,8 @@
 #include "RobotState.h"
 #include "Logger.h"
 #include "config.h"
-#include "TimerManager.h"
 
-class MotorController : public TimerCallback {
+class MotorController {
 private:
     Motor& leftMotor;
     Motor& rightMotor;
@@ -27,9 +26,8 @@ private:
     float steeringError = 0;
     float steeringIntegral = 0;
     float lastSteeringError = 0;
+    unsigned long lastPidUpdate = 0;  // Track last PID update time
 
-    void updatePID();
-    void applyMotorOutputs(float leftPwm, float rightPwm);
     float calculateCurrentSteeringRatio() const;
 
     float leftMotorScale = DEFAULT_LEFT_MOTOR_SCALE;
@@ -38,11 +36,11 @@ private:
 
 public:
     MotorController(Motor& left, Motor& right, int flt, RobotState& s, Logger& log);
-    ~MotorController();
     void begin();
     void setSteering(float steering);
     void stop();
     bool checkFault();
+    void update();  // Moved from private to public
     
     float getSteering() const { return currentSteering; }
     unsigned long getLeftTimeSinceLastPulse() const { return leftMotor.getTimeSinceLastPulse(); }
@@ -54,5 +52,4 @@ public:
     void calibrate() { calibrateMotors(); }
     float getLeftScale() const { return leftMotorScale; }
     float getRightScale() const { return rightMotorScale; }
-    void onTimer() override { updatePID(); }
 };

@@ -48,10 +48,8 @@
 #endif
 
 // Motor control configuration
-#define MOTOR_UPDATE_INTERVAL 20    // Increased update frequency (was 50)
+#define MOTOR_UPDATE_INTERVAL 5    // Increased update frequency (was 50)
 #define MOTOR_PWM_RESOLUTION 10     // Increased from 8 to 10 bits for finer control
-#define MOTOR_MAX_RPM 200.0f       
-#define MOTOR_PULSES_PER_REV 20.0f // Encoder pulses per revolution
 
 // Motor PWM control
 #define MOTOR_PWM_MIN_UPDATE_INTERVAL 10     // Reduced delay between PWM updates

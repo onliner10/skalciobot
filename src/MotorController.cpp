@@ -8,15 +8,6 @@ void MotorController::begin() {
     
     leftMotor.begin();
     rightMotor.begin();
-    
-    // Initialize PID timer
-    if (!TimerManager::begin(this, STEERING_PID_INTERVAL * 1000)) {
-        logger.error("Failed to initialize PID timer", LogContext::Motor);
-    }
-}
-
-MotorController::~MotorController() {
-    TimerManager::cleanup();
 }
 
 void MotorController::setSteering(float steering) {
@@ -53,7 +44,14 @@ float MotorController::calculateCurrentSteeringRatio() const {
     return ratio;
 }
 
-void MotorController::updatePID() {
+// Rename updatePID to update for consistency
+void MotorController::update() {
+    unsigned long now = millis();
+    if (now - lastPidUpdate < STEERING_PID_INTERVAL) {
+        return;  // Not time for PID update yet
+    }
+    lastPidUpdate = now;
+
     if (!state.isEnabled() || speedPercent == 0) {
         stop();
         return;
@@ -94,15 +92,6 @@ void MotorController::updatePID() {
     rightMotor.setPwm(rightPwm);
     
     lastSteeringError = error;
-}
-
-void MotorController::applyMotorOutputs(float leftPwm, float rightPwm) {
-    // Apply motor scaling factors
-    leftPwm *= leftMotorScale;
-    rightPwm *= rightMotorScale;
-    
-    leftMotor.setPwm(int(constrain(leftPwm, -1023.0f, 1023.0f)));
-    rightMotor.setPwm(int(constrain(rightPwm, -1023.0f, 1023.0f)));
 }
 
 void MotorController::stop() {

@@ -19,7 +19,6 @@ private:
     // Remove hardcoded PWM_RESOLUTION
     static void IRAM_ATTR encoderISR(void* arg);
     
-    static constexpr float PULSES_PER_REV = MOTOR_PULSES_PER_REV;
     static constexpr size_t SPEED_BUFFER_SIZE = 4;  // Number of samples to average
     float speedBuffer[SPEED_BUFFER_SIZE] = {0};
     size_t speedBufferIndex = 0;
