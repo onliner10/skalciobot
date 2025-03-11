@@ -23,11 +23,9 @@ LogLevelDecorator* levelLogger = new LogLevelDecorator(webLogger, LOG_LEVEL, FIL
 // Create shared robot state
 RobotState robotState(*levelLogger);
 
-// Create motors with PID constants
-Motor leftMotor(LEFT_MOTOR_IN1, LEFT_MOTOR_IN2, ENCODER_LEFT, *levelLogger,
-                LEFT_MOTOR_PID_KP, LEFT_MOTOR_PID_KI, LEFT_MOTOR_PID_KD);
-Motor rightMotor(RIGHT_MOTOR_IN1, RIGHT_MOTOR_IN2, ENCODER_RIGHT, *levelLogger,
-                RIGHT_MOTOR_PID_KP, RIGHT_MOTOR_PID_KI, RIGHT_MOTOR_PID_KD);
+// Create motors
+Motor leftMotor(LEFT_MOTOR_IN1, LEFT_MOTOR_IN2, ENCODER_LEFT, *levelLogger);
+Motor rightMotor(RIGHT_MOTOR_IN1, RIGHT_MOTOR_IN2, ENCODER_RIGHT, *levelLogger);
 
 // Create motor controller with logger
 MotorController motors(leftMotor, rightMotor, MOTOR_SLEEP, MOTOR_FLT, robotState, *levelLogger);
@@ -79,8 +77,8 @@ void setup() {
 
 void loop() {
     sensors.update();
-    leftMotor.update();
-    rightMotor.update();
+    motors.update();
+    // Remove motor update calls since they're no longer needed
     robot.update();
     levelLogger->update();
     

@@ -1,14 +1,13 @@
 #include "Motor.h"
 
 // Update constructor
-Motor::Motor(int pin1, int pin2, int encPin, Logger& log, float kp, float ki, float kd)
-    : in1Pin(pin1), in2Pin(pin2), encoderPin(encPin), logger(log),
-      KP(kp), KI(ki), KD(kd) {
+Motor::Motor(int pin1, int pin2, int encPin, Logger& log)
+    : in1Pin(pin1), in2Pin(pin2), encoderPin(encPin), logger(log) {
 }
 
 void IRAM_ATTR Motor::encoderISR(void* arg) {
     Motor* motor = static_cast<Motor*>(arg);
-    motor->pulseCount++;
+    motor->accumulatedPulses++;
     motor->lastPulseTime = millis();
 }
 
@@ -28,66 +27,41 @@ void Motor::begin() {
         digitalPinToInterrupt(encoderPin),
         encoderISR,
         this,
-        RISING
+        CHANGE
     );
 }
 
-void Motor::update() {
+float Motor::getCurrentSpeed() {
     unsigned long now = millis();
+    unsigned long timeSinceLastUpdate = now - lastSpeedUpdate;
     
-    // Update RPM measurement every 50ms
-    if (now - lastUpdateTime >= 50) {
-        float deltaTime = (now - lastUpdateTime) / 1000.0f;
-        float revolutions = pulseCount / PULSES_PER_REV;
-        currentRPM = (revolutions * 60.0f) / deltaTime;
+    if (timeSinceLastUpdate >= MOTOR_UPDATE_INTERVAL) {
+        // Calculate instantaneous speed
+        float instantSpeed = (float)accumulatedPulses * (MOTOR_UPDATE_INTERVAL / (float)timeSinceLastUpdate);
         
-        pulseCount = 0;
-        lastUpdateTime = now;
-    }
-    
-    if (now - lastPwmUpdateTime >= PWM_UPDATE_INTERVAL) {
-        if (targetRPM != 0) {
-            updatePID();
+        // Update circular buffer
+        speedBuffer[speedBufferIndex] = instantSpeed;
+        speedBufferIndex = (speedBufferIndex + 1) % SPEED_BUFFER_SIZE;
+        
+        // Calculate moving average
+        float sum = 0;
+        for (size_t i = 0; i < SPEED_BUFFER_SIZE; i++) {
+            sum += speedBuffer[i];
         }
-        lastPwmUpdateTime = now;
-    }
-}
-
-void Motor::updatePID() {
-    float error = targetRPM - currentRPM;
-    float deltaTime = PWM_UPDATE_INTERVAL / 1000.0f;
-
-    // Reset integral when target changes direction
-    if (signbit(targetRPM) != signbit(lastError)) {
-        integral = 0;
+        currentSpeed = sum / SPEED_BUFFER_SIZE;
+        
+        // Reset pulse counter
+        accumulatedPulses = 0;
+        lastSpeedUpdate = now;
     }
     
-    integral += error * deltaTime;
-    integral = constrain(integral, -100.0f, 100.0f);  // Limit integral windup
-    
-    // Simple PID calculation
-    float derivative = (error - lastError) / deltaTime;
-    float output = (KP * error) + (KI * integral) + (KD * derivative);
-    
-    // Ensure output direction matches target
-    if (targetRPM >= 0) {
-        output = constrain(output, 0, 255);
-    } else if (targetRPM < 0) {
-        output = constrain(output, -255, 0);
-    }
-    
-    setRawPwm(int(output));
-    lastError = error;
+    return currentSpeed;
 }
 
-void Motor::setRPM(float rpm) {
-    targetRPM = constrain(rpm, -MAX_RPM, MAX_RPM);
-}
-
-void Motor::setRawPwm(int pwm) {
+void Motor::setPwm(int pwm) {
     pwm = constrain(pwm, -255, 255);
     currentPwm = pwm;
-    
+        
     if (pwm >= 0) {
         analogWrite(in2Pin, 0);
         analogWrite(in1Pin, pwm);
@@ -97,15 +71,6 @@ void Motor::setRawPwm(int pwm) {
     }
 }
 
-// Keep existing setPwm method for testing/recovery
-void Motor::setPwm(int pwm) {
-    targetRPM = 0; // Disable PID control
-    setRawPwm(pwm);
-}
-
 void Motor::stop() {
-    targetRPM = 0;
-    integral = 0;
-    lastError = 0;
-    setRawPwm(0);
+    setPwm(0);
 }

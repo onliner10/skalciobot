@@ -56,11 +56,13 @@ void WebInterface::begin() {
             <div>Status: <span id="motorStatus">Stopped</span></div>
         </div>
         <button onclick="testMotors()">TEST MOTORS</button>
+        <button onclick="calibrateMotors()">CALIBRATE</button>
+        <div id="calibrationStatus"></div>
         <div class="control-input">
-            <label for="speed">Speed (RPM):</label>
-            <input type="number" id="speed" value="0" min="-200" max="200">
-            <span>(-200 to 200 RPM)</span>
-            <button onclick="updateSpeed()">Set Speed</button>
+            <label for="speed">Speed:</label>
+            <input type="number" id="speed" value="0" min="-100" max="100">
+            <span>(-100 to 100%)</span>
+            <button onclick="setSpeed()">Set Speed</button>
         </div>
         <div class="control-input">
             <label for="steering">Steering (-100 to 100):</label>
@@ -84,21 +86,6 @@ void WebInterface::begin() {
         let lastSteeringUpdate = 0;
         const THROTTLE_MS = 100;  // Only send one command per 100ms
 
-        function updateRpm() {
-            const input = document.getElementById("rpm");
-            const value = parseInt(input.value);
-            if (isNaN(value) || value < -255 || value > 255) {
-                alert("Please enter a valid speed between -255 and 255");
-                return;
-            }
-            
-            document.getElementById("rpmValue").textContent = value;
-            fetch("/motors/rpm?value=" + value).then(() => {
-                input.style.backgroundColor = "#e8ffe8";
-                setTimeout(() => input.style.backgroundColor = "", 500);
-            });
-        }
-
         function updateSteering(value) {
             document.getElementById("steeringValue").textContent = value;
             
@@ -113,10 +100,8 @@ void WebInterface::begin() {
 
         function stopMotors() {
             fetch("/motors/stop");
-            document.getElementById("rpm").value = 0;
-            document.getElementById("rpmValue").textContent = "0";
+            document.getElementById("speed").value = 0;
             document.getElementById("steering").value = 0;
-            document.getElementById("steeringValue").textContent = "0";
         }
         function updateSensors() {
             fetch("/distance")
@@ -195,13 +180,13 @@ void WebInterface::begin() {
                 });
         }
 
-        function updateSpeed() {
-            const value = parseInt(document.getElementById("speed").value);
-            if (isNaN(value) || value < -200 || value > 200) {
-                alert("Please enter a valid RPM between -200 and 200");
+        function setSpeed() {
+            const speed = parseFloat(document.getElementById("speed").value);
+            if (isNaN(speed) || speed < -100 || speed > 100) {
+                alert("Speed must be between -100 and 100");
                 return;
             }
-            fetch("/motors/rpm?value=" + value);
+            fetch("/motors/speed?value=" + speed);
         }
 
         function updateSteering() {
@@ -216,6 +201,22 @@ void WebInterface::begin() {
                 input.style.backgroundColor = "#e8ffe8";
                 setTimeout(() => input.style.backgroundColor = "", 500);
             });
+        }
+
+        function calibrateMotors() {
+            if (!confirm("Robot will perform calibration sequence. Continue?")) {
+                return;
+            }
+            document.getElementById("calibrationStatus").textContent = "Calibrating...";
+            fetch("/motors/calibrate")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("calibrationStatus").textContent = 
+                        `Calibration complete - Left scale: ${data.left}, Right scale: ${data.right}`;
+                })
+                .catch(error => {
+                    document.getElementById("calibrationStatus").textContent = "Calibration failed!";
+                });
         }
 
         document.querySelectorAll('input[name="controlMode"]').forEach(input => {
@@ -234,6 +235,11 @@ void WebInterface::begin() {
         .rpm-display span {
             display: inline-block;
             min-width: 3em;
+        }
+        #calibrationStatus {
+            margin-top: 10px;
+            font-family: monospace;
+            color: #666;
         }
     </style>
 </body>
@@ -285,19 +291,33 @@ void WebInterface::begin() {
         server.send(200, "application/json", json);
     });
 
-    // For parameters, use URI patterns with WebServer
-    server.on("/motors/steering", HTTP_GET, [this]() {
-        if (robot.isAuto()) {
+    server.on("/motors/speed", HTTP_GET, [this]() {
+        if (!robotState.isManual()) {
             server.send(400, "text/plain", "Must be in manual mode");
             return;
         }
         
         if(server.hasArg("value")) {
-            int steering = server.arg("value").toInt();
-            if (steering >= -100 && steering <= 100) {
-                // Convert to proper steering range and invert for intuitive control
-                // 0 = straight, positive = right turn, negative = left turn
-                motors.setSteering(-steering / 100.0f);
+            float speed = server.arg("value").toFloat();
+            if (speed >= -100 && speed <= 100) {
+                motors.setSpeedPercent(speed);
+                server.send(200, "text/plain", "OK");
+            } else {
+                server.send(400, "text/plain", "Invalid speed value");
+            }
+        }
+    });
+
+    server.on("/motors/steering", HTTP_GET, [this]() {
+        if (!robotState.isManual()) {
+            server.send(400, "text/plain", "Must be in manual mode");
+            return;
+        }
+        
+        if(server.hasArg("value")) {
+            float steering = server.arg("value").toFloat();
+            if (steering >= -1.0f && steering <= 1.0f) {
+                motors.setSteering(steering);
                 server.send(200, "text/plain", "OK");
             } else {
                 server.send(400, "text/plain", "Invalid steering value");
@@ -305,32 +325,15 @@ void WebInterface::begin() {
         }
     });
 
-    server.on("/motors/rpm", HTTP_GET, [this]() {
-        if (!robotState.isManual()) {
-            server.send(400, "text/plain", "Must be in manual mode");
-            return;
-        }
-        
-        if(server.hasArg("value")) {
-            float rpm = server.arg("value").toFloat();
-            if (rpm >= -MOTOR_MAX_RPM && rpm <= MOTOR_MAX_RPM) {
-                motors.setRPM(rpm);
-                server.send(200, "text/plain", "RPM set to: " + String(rpm));
-            } else {
-                server.send(400, "text/plain", "Invalid RPM value");
-            }
-        }
-    });
-
     server.on("/motors/stop", HTTP_GET, [this]() {
-        motors.stop();  // Just stop motors, no manual control needed
+        motors.stop();
         server.send(200, "text/plain", "Motors stopped");
     });
 
     // Update motors/status endpoint to just return basic status:
     server.on("/motors/status", HTTP_GET, [this]() {
         String status = "Stopped";
-        if (leftMotor.getCurrentRPM() != 0 || rightMotor.getCurrentRPM() != 0) {
+        if (leftMotor.getCurrentSpeed() != 0 || rightMotor.getCurrentSpeed() != 0) {
             status = "Running";
         }
         server.send(200, "text/plain", status);
@@ -433,5 +436,21 @@ Right Motor:
         robotState.setMode(OperationMode::Auto);
         motors.stop();
         server.send(200, "text/plain", "AUTO");
+    });
+
+    // Add calibration endpoint
+    server.on("/motors/calibrate", HTTP_GET, [this]() {
+        if (!robotState.isManual()) {
+            server.send(400, "text/plain", "Must be in manual mode");
+            return;
+        }
+        
+        motors.calibrate();
+        
+        String json = "{";
+        json += "\"left\":" + String(motors.getLeftScale()) + ",";
+        json += "\"right\":" + String(motors.getRightScale());
+        json += "}";
+        server.send(200, "application/json", json);
     });
 }

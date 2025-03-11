@@ -60,7 +60,7 @@ void RobotLogic::handleStuckState() {
     recoveryPhase = RecoveryPhase::Backing;
     
     // Alternate between forward and backward recovery
-    int recoveryPwm = lastRecoveryWasBackward ? 255 : -255;
+    int recoverySpeed = lastRecoveryWasBackward ? 100 : -100;
     lastRecoveryWasBackward = !lastRecoveryWasBackward;
     
     // Use opposite of current steering direction for recovery
@@ -69,11 +69,11 @@ void RobotLogic::handleStuckState() {
         recoveryDirection = random(2) ? 1.0f : -1.0f;
     }
     
-    motors.setPwm(recoveryPwm);
+    motors.setSpeedPercent(recoverySpeed);
     motors.setSteering(recoveryDirection);
     
     logger.info("Recovery direction: " + String(recoveryDirection) + 
-                ", PWM: " + String(recoveryPwm), LogContext::Navigation);
+                ", Speed Percent: " + String(recoverySpeed), LogContext::Navigation);
 }
 
 void RobotLogic::updateRecoveryManeuver() {
@@ -86,7 +86,7 @@ void RobotLogic::updateRecoveryManeuver() {
                 // Keep same steering direction but go forward
                 recoveryPhase = RecoveryPhase::Turning;
                 recoveryStartTime = currentTime;
-                motors.setPwm(128);  // Half speed PWM for turning
+                motors.setSpeedPercent(50);  // Half speed for turning
             }
             break;
             
@@ -120,7 +120,7 @@ int RobotLogic::calculateTargetSpeed(uint16_t front) {
         constrain(front, MIN_SPEED_DISTANCE, MAX_SPEED_DISTANCE),
         MIN_SPEED_DISTANCE,
         MAX_SPEED_DISTANCE,
-        128,  // Half speed PWM
-        255   // Full speed PWM
+        50,   // Half speed (50%)
+        100   // Full speed (100%)
     );
 }

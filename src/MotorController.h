@@ -2,6 +2,7 @@
 #include "Motor.h"
 #include "RobotState.h"
 #include "Logger.h"
+#include "config.h"
 
 class MotorController {
 private:
@@ -10,15 +11,44 @@ private:
     const int sleepPin;
     const int faultPin;
     Logger& logger;
-    
-    int currentPwm = 0;        // Current PWM value (-255 to 255)
-    float currentSteering = 0; // -1 (full left) to 1 (full right)
-    bool isFaulted = false;
-    float currentRPM = 0;      // Base RPM value
-    static constexpr float MAX_RPM = 600.0f;
-    
-    void updateMotors();
     RobotState& state;
+    
+    // Base speed control
+    float speedPercent = 0;  // -100 to 100
+    
+    // Steering control
+    float targetSteeringRatio = 0;  // -1 (full left) to 1 (full right)
+    float currentSteering = 0;      // Current steering value
+    
+    // PID control for steering
+    const float KP = STEERING_PID_KP;
+    const float KI = STEERING_PID_KI;
+    const float KD = STEERING_PID_KD;
+    float steeringError = 0;
+    float steeringIntegral = 0;
+    float lastSteeringError = 0;
+    unsigned long lastPidUpdate = 0;
+    static constexpr unsigned long PID_UPDATE_INTERVAL = STEERING_PID_INTERVAL;
+    
+    unsigned long lastPwmUpdate = 0;
+    bool shouldUpdatePwm(float leftPwm, float rightPwm) const;
+    
+    // Cache last PWM values for throttling
+    float lastLeftPwm = 0;
+    float lastRightPwm = 0;
+    float lastOutputLeftPwm = 0;
+    float lastOutputRightPwm = 0;
+    static constexpr float PWM_SMOOTHING = MOTOR_PWM_SMOOTHING;
+
+    void updatePID();
+    void applyMotorOutputs(float leftPwm, float rightPwm);
+    float calculateCurrentSteeringRatio() const;
+
+    static constexpr float MAX_RPM = MOTOR_MAX_RPM;
+
+    float leftMotorScale = DEFAULT_LEFT_MOTOR_SCALE;
+    float rightMotorScale = DEFAULT_RIGHT_MOTOR_SCALE;
+    void calibrateMotors();
 
 public:
     MotorController(Motor& left, Motor& right, int slp, int flt, RobotState& s, Logger& log);
@@ -31,11 +61,10 @@ public:
     bool checkFault();
     void sleep(bool enable);
     
-    int getPwm() const { return currentPwm; }
     float getSteering() const { return currentSteering; }
-    void setRPM(float rpm);            // -MAX_RPM to MAX_RPM
-    float getRPM() const { return currentRPM; }
-
+    
+    // Remove setRPM and getRPM methods
+    
     // For stuck detection
     unsigned long getLeftTimeSinceLastPulse() const { return leftMotor.getTimeSinceLastPulse(); }
     unsigned long getRightTimeSinceLastPulse() const { return rightMotor.getTimeSinceLastPulse(); }
@@ -44,20 +73,17 @@ public:
     void disable() { digitalWrite(sleepPin, LOW); }
     bool isFault() const { return digitalRead(faultPin) == LOW; }
 
-    void test() {
-        digitalWrite(sleepPin, HIGH);  // Enable drivers
-        delay(1);
-        
-        // Test forward
-        leftMotor.setPwm(128);
-        rightMotor.setPwm(128);
-        delay(1000);
-        
-        // Test backward
-        leftMotor.setPwm(-128);
-        rightMotor.setPwm(-128);
-        delay(1000);
-        
-        stop();
+    void setSpeedPercent(float percent);  // -100 to 100
+    float getSpeedPercent() const { return speedPercent; }
+
+    void test();  // Add test method declaration
+
+    void calibrate() { calibrateMotors(); }
+    void setMotorScales(float left, float right) {
+        leftMotorScale = left;
+        rightMotorScale = right;
     }
+
+    float getLeftScale() const { return leftMotorScale; }
+    float getRightScale() const { return rightMotorScale; }
 };

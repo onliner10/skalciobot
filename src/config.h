@@ -63,13 +63,20 @@
 #define MOTOR_MAX_RPM 200.0f       
 #define MOTOR_PULSES_PER_REV 20.0f // Encoder pulses per revolution
 
-// PID control constants
-// Left motor
-#define LEFT_MOTOR_PID_KP 1.14f
-#define LEFT_MOTOR_PID_KI 0.2f
-#define LEFT_MOTOR_PID_KD 0.14f
+// Motor PWM control
+#define MOTOR_PWM_MIN_UPDATE_INTERVAL 5     // Reduced from 20ms to 5ms
+#define MOTOR_PWM_MIN_CHANGE 2              // Reduced from 5 to 2
+#define MOTOR_PWM_SMOOTHING 0.2f           // Output smoothing factor (0-1)
 
-// Right motor
-#define RIGHT_MOTOR_PID_KP 1.39f
-#define RIGHT_MOTOR_PID_KI 0.21f
-#define RIGHT_MOTOR_PID_KD 0.3f
+// Steering PID configuration
+#define STEERING_PID_KP 1.0f    // Full opposing motor speeds at maximum error
+#define STEERING_PID_KI 0.05f    // Start without integral term
+#define STEERING_PID_KD 0.2f    // Start without derivative term
+#define STEERING_PID_INTERVAL 50 // PID update interval in milliseconds
+#define STEERING_INTEGRAL_LIMIT 1.0f // Limit for integral term
+
+// Motor calibration
+#define MOTOR_CALIBRATION_TIME 2000    // Time to run calibration (ms)
+#define MOTOR_CALIBRATION_SPEED 50     // Speed percent to use for calibration
+#define DEFAULT_LEFT_MOTOR_SCALE 0.79f  // Default scaling factor
+#define DEFAULT_RIGHT_MOTOR_SCALE 1.0f // Default scaling factor
