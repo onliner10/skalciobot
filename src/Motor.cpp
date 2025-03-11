@@ -20,7 +20,7 @@ void Motor::begin() {
     analogWrite(in1Pin, 0);
     analogWrite(in2Pin, 0);
     
-    analogWriteResolution(PWM_RESOLUTION);
+    analogWriteResolution(MOTOR_PWM_RESOLUTION);
     
     // Setup encoder interrupt
     attachInterruptArg(
@@ -59,7 +59,8 @@ float Motor::getCurrentSpeed() {
 }
 
 void Motor::setPwm(int pwm) {
-    pwm = constrain(pwm, -255, 255);
+    const int maxPwm = (1 << MOTOR_PWM_RESOLUTION) - 1;
+    pwm = constrain(pwm, -maxPwm, maxPwm);
     currentPwm = pwm;
         
     if (pwm >= 0) {

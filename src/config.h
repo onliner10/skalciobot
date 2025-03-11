@@ -52,15 +52,14 @@
 #endif
 
 // Motor control configuration
-#define MOTOR_UPDATE_INTERVAL 50    // Motor control update interval (ms)
-#define MOTOR_PWM_RESOLUTION 8      // PWM resolution bits
+#define MOTOR_UPDATE_INTERVAL 20    // Increased update frequency (was 50)
+#define MOTOR_PWM_RESOLUTION 10     // Increased from 8 to 10 bits for finer control
 #define MOTOR_MAX_RPM 200.0f       
 #define MOTOR_PULSES_PER_REV 20.0f // Encoder pulses per revolution
 
 // Motor PWM control
-#define MOTOR_PWM_MIN_UPDATE_INTERVAL 5     // Reduced from 20ms to 5ms
-#define MOTOR_PWM_MIN_CHANGE 2              // Reduced from 5 to 2
-#define MOTOR_PWM_SMOOTHING 0.1f           // Output smoothing factor (0-1)
+#define MOTOR_PWM_MIN_UPDATE_INTERVAL 2     // Reduced delay between PWM updates
+#define MOTOR_PWM_MIN_CHANGE 1              // Reduced to allow finer adjustments
 
 // Steering PID configuration
 #define STEERING_PID_KP 1.0f    // Full opposing motor speeds at maximum error

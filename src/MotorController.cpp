@@ -1,22 +1,13 @@
 #include "MotorController.h"
 
-MotorController::MotorController(Motor& left, Motor& right, int slp, int flt, RobotState& s, Logger& log)
-    : leftMotor(left), rightMotor(right), sleepPin(slp), faultPin(flt), state(s), logger(log) {}
+MotorController::MotorController(Motor& left, Motor& right, int flt, RobotState& s, Logger& log)
+    : leftMotor(left), rightMotor(right), faultPin(flt), state(s), logger(log) {}
 
 void MotorController::begin() {
-    pinMode(sleepPin, OUTPUT);
     pinMode(faultPin, INPUT_PULLUP);  // Add internal pullup for open-drain output
-    
-    // Start with motors disabled
-    digitalWrite(sleepPin, LOW);
     
     leftMotor.begin();
     rightMotor.begin();
-}
-
-void MotorController::setPwm(int pwm) {
-    speedPercent = (pwm / 255.0f) * 100.0f;
-    updatePID();
 }
 
 void MotorController::setSteering(float steering) {
@@ -101,8 +92,8 @@ void MotorController::updatePID() {
                 " D:" + String(KD * derivative) + 
                 " Total:" + String(correction), LogContext::Motor);
     
-    // Calculate base PWM from speed percent
-    float basePwm = (speedPercent / 100.0f) * 255.0f;
+    // Calculate base PWM from speed percent using 10-bit range
+    float basePwm = (speedPercent / 100.0f) * 1023.0f;
     float leftPwm = basePwm;
     float rightPwm = basePwm;
     
@@ -118,11 +109,7 @@ void MotorController::updatePID() {
     logger.debug("PWM - L:" + String(leftPwm) + " R:" + String(rightPwm) + 
                 " Correction:" + String(correction), LogContext::Motor);
     
-    // Enable motors if needed
-    if (leftPwm != 0 || rightPwm != 0) {
-        enable();
-        delay(1);
-    }
+    // Remove enable() call - motors are now managed by RobotState
     
     applyMotorOutputs(leftPwm, rightPwm);
     lastSteeringError = error;
@@ -152,17 +139,13 @@ void MotorController::applyMotorOutputs(float leftPwm, float rightPwm) {
     leftPwm *= leftMotorScale;
     rightPwm *= rightMotorScale;
     
-    // Smooth the PWM changes
-    float smoothedLeftPwm = (leftPwm * PWM_SMOOTHING) + (lastOutputLeftPwm * (1.0f - PWM_SMOOTHING));
-    float smoothedRightPwm = (rightPwm * PWM_SMOOTHING) + (lastOutputRightPwm * (1.0f - PWM_SMOOTHING));
-    
-    leftMotor.setPwm(int(constrain(smoothedLeftPwm, -255.0f, 255.0f)));
-    rightMotor.setPwm(int(constrain(smoothedRightPwm, -255.0f, 255.0f)));
+    leftMotor.setPwm(int(constrain(leftPwm, -1023.0f, 1023.0f)));
+    rightMotor.setPwm(int(constrain(rightPwm, -1023.0f, 1023.0f)));
     
     lastLeftPwm = leftPwm;
     lastRightPwm = rightPwm;
-    lastOutputLeftPwm = smoothedLeftPwm;
-    lastOutputRightPwm = smoothedRightPwm;
+    lastOutputLeftPwm = leftPwm;
+    lastOutputRightPwm = rightPwm;
     lastPwmUpdate = millis();
 }
 
@@ -175,7 +158,6 @@ void MotorController::stop() {
     lastOutputRightPwm = 0;
     leftMotor.stop();
     rightMotor.stop();
-    disable();
 }
 
 bool MotorController::checkFault() {
@@ -183,19 +165,12 @@ bool MotorController::checkFault() {
     return digitalRead(faultPin) == LOW;
 }
 
-void MotorController::sleep(bool enable) {
-    digitalWrite(sleepPin, enable ? LOW : HIGH);
-}
-
 void MotorController::test() {
     if (!state.isEnabled()) {
         return;
     }
     
-    enable();
-    delay(1);
-    
-    // Test forward
+    // Start test directly, no need to manage sleep pin
     setSpeedPercent(50);  // Half speed forward
     delay(1000);
     
@@ -210,7 +185,7 @@ void MotorController::calibrateMotors() {
     if (!state.isEnabled()) return;
     
     logger.info("Starting motor calibration...", LogContext::Motor);
-    enable();
+    // Remove enable() call - motors are now managed by RobotState
     delay(1);
     
     // Reset speed buffers

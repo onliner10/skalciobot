@@ -8,8 +8,7 @@ class MotorController {
 private:
     Motor& leftMotor;
     Motor& rightMotor;
-    const int sleepPin;
-    const int faultPin;
+    const int faultPin;  // Remove sleepPin
     Logger& logger;
     RobotState& state;
     
@@ -38,7 +37,6 @@ private:
     float lastRightPwm = 0;
     float lastOutputLeftPwm = 0;
     float lastOutputRightPwm = 0;
-    static constexpr float PWM_SMOOTHING = MOTOR_PWM_SMOOTHING;
 
     void updatePID();
     void applyMotorOutputs(float leftPwm, float rightPwm);
@@ -51,15 +49,13 @@ private:
     void calibrateMotors();
 
 public:
-    MotorController(Motor& left, Motor& right, int slp, int flt, RobotState& s, Logger& log);
+    MotorController(Motor& left, Motor& right, int flt, RobotState& s, Logger& log);
     
     void begin();
-    void setPwm(int pwm);            // -255 to 255
     void setSteering(float steering); // -1.0 to 1.0
     void update();                    // Call in loop
     void stop();
     bool checkFault();
-    void sleep(bool enable);
     
     float getSteering() const { return currentSteering; }
     
@@ -69,8 +65,6 @@ public:
     unsigned long getLeftTimeSinceLastPulse() const { return leftMotor.getTimeSinceLastPulse(); }
     unsigned long getRightTimeSinceLastPulse() const { return rightMotor.getTimeSinceLastPulse(); }
 
-    void enable() { digitalWrite(sleepPin, HIGH); }
-    void disable() { digitalWrite(sleepPin, LOW); }
     bool isFault() const { return digitalRead(faultPin) == LOW; }
 
     void setSpeedPercent(float percent);  // -100 to 100

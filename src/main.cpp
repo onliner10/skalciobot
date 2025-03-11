@@ -21,14 +21,14 @@ WebLogger* webLogger = new WebLogger(ledLogger);  // Fix null to nullptr
 LogLevelDecorator* levelLogger = new LogLevelDecorator(webLogger, LOG_LEVEL, FILTERED_CONTEXTS);
 
 // Create shared robot state
-RobotState robotState(*levelLogger);
+RobotState robotState(*levelLogger, MOTOR_SLEEP);
 
 // Create motors
 Motor leftMotor(LEFT_MOTOR_IN1, LEFT_MOTOR_IN2, ENCODER_LEFT, *levelLogger);
 Motor rightMotor(RIGHT_MOTOR_IN1, RIGHT_MOTOR_IN2, ENCODER_RIGHT, *levelLogger);
 
 // Create motor controller with logger
-MotorController motors(leftMotor, rightMotor, MOTOR_SLEEP, MOTOR_FLT, robotState, *levelLogger);
+MotorController motors(leftMotor, rightMotor, MOTOR_FLT, robotState, *levelLogger);
 
 // Create core components with shared state
 DistanceSensors sensors(*levelLogger);  // Pass logger to sensors

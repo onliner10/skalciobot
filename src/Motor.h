@@ -16,7 +16,7 @@ private:
     float currentSpeed = 0.0f;         // Store last calculated speed
     int16_t currentPwm = 0;
     
-    static const int PWM_RESOLUTION = 8;
+    // Remove hardcoded PWM_RESOLUTION
     static void IRAM_ATTR encoderISR(void* arg);
     
     static constexpr float PULSES_PER_REV = MOTOR_PULSES_PER_REV;
@@ -27,7 +27,7 @@ private:
 public:
     Motor(int pin1, int pin2, int encPin, Logger& log);
     void begin();
-    void setPwm(int pwm);  // -255 to 255
+    void setPwm(int pwm);  // -PWM_MAX to PWM_MAX (based on MOTOR_PWM_RESOLUTION)
     void stop();
     
     float getCurrentSpeed();  // Returns pulses per interval
