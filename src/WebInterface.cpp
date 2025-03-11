@@ -38,7 +38,6 @@ void WebInterface::begin() {
 <body>
     <nav>
         <a href="/">Home</a>
-        <a href="/encoders">Encoder Status</a>
     </nav>
     <h1>Robot Control</h1>
     <div class="control-group">
@@ -73,16 +72,27 @@ void WebInterface::begin() {
     </div>
     <div class="control-group">
         <h2>Distance Sensors</h2>
+        <div>
+            <label>
+                <input type="checkbox" id="sensorUpdatesEnabled">
+                Enable live updates
+            </label>
+        </div>
         <p>Front: <span id="front" class="sensor-value">--</span> mm</p>
         <p>Left: <span id="left" class="sensor-value">--</span> mm</p>
         <p>Right: <span id="right" class="sensor-value">--</span> mm</p>
     </div>
     <div class="control-group">
         <h2>System Logs</h2>
+        <div>
+            <label>
+                <input type="checkbox" id="logsUpdatesEnabled">
+                Enable live updates
+            </label>
+        </div>
         <div id="logs"></div>
     </div>
     <script>
-        let lastRpmUpdate = 0;
         let lastSteeringUpdate = 0;
         const THROTTLE_MS = 100;  // Only send one command per 100ms
 
@@ -147,27 +157,63 @@ void WebInterface::begin() {
                 });
         }
 
-        // Add state update to periodic updates
+        // Fix state update function to use 'mode' element instead of non-existent 'state'
         function updateState() {
             fetch("/status")
                 .then(response => response.text())
                 .then(state => {
-                    document.getElementById("state").textContent = state;
+                    document.getElementById("mode").textContent = state;
                 });
         }
 
-        // Add keyboard event listener for the speed input
-        document.getElementById("rpm").addEventListener("keypress", function(e) {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                updateRpm();
-            }
-        });
+        let sensorUpdateInterval;
+        let logsUpdateInterval;
 
-        setInterval(updateState, 1000);
-        setInterval(updateSensors, 2000);    // Sensors every 2s
-        setInterval(updateLogs, 1000);        // Logs every second
-        stopMotors();
+        function startSensorUpdates() {
+            updateSensors(); // Update immediately
+            sensorUpdateInterval = setInterval(updateSensors, 2000);
+        }
+
+        function stopSensorUpdates() {
+            if (sensorUpdateInterval) {
+                clearInterval(sensorUpdateInterval);
+            }
+        }
+
+        function startLogsUpdates() {
+            updateLogs(); // Update immediately
+            logsUpdateInterval = setInterval(updateLogs, 1000);
+        }
+
+        function stopLogsUpdates() {
+            if (logsUpdateInterval) {
+                clearInterval(logsUpdateInterval);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSensors(); // Get initial sensor readings
+            updateState();   // Get initial state
+            setInterval(updateState, 1000);
+            stopMotors();
+
+            // Add event listeners for toggles
+            document.getElementById('sensorUpdatesEnabled').addEventListener('change', function(e) {
+                if (e.target.checked) {
+                    startSensorUpdates();
+                } else {
+                    stopSensorUpdates();
+                }
+            });
+
+            document.getElementById('logsUpdatesEnabled').addEventListener('change', function(e) {
+                if (e.target.checked) {
+                    startLogsUpdates();
+                } else {
+                    stopLogsUpdates();
+                }
+            });
+        });
 
         function setMode(mode) {
             fetch("/mode/" + mode)
@@ -218,11 +264,6 @@ void WebInterface::begin() {
                     document.getElementById("calibrationStatus").textContent = "Calibration failed!";
                 });
         }
-
-        document.querySelectorAll('input[name="controlMode"]').forEach(input => {
-            input.addEventListener('change', updateControlMode);
-        });
-        updateControlMode();
     </script>
     <style>
         .slider-container input[type="range"] {
@@ -355,68 +396,6 @@ void WebInterface::begin() {
 
     server.on("/log", HTTP_GET, [this]() {
         server.send(200, "text/plain", webLogger.getLogs());
-    });
-
-    // Replace debug endpoint with encoders
-    server.on("/encoders", HTTP_GET, [this]() {
-        const char* html = R"rawliteral(
-<html>
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { font-family: Arial; margin: 20px; }
-        .diagnostic { margin: 10px 0; }
-        #motorData { font-family: monospace; }
-        nav { margin: 10px 0; }
-        nav a { margin-right: 10px; }
-    </style>
-</head>
-<body>
-    <nav>
-        <a href="/">Home</a>
-        <a href="/encoders">Encoder Status</a>
-    </nav>
-    <h1>Encoder Status</h1>
-    <div id="motorData">Loading...</div>
-    <script>
-        function updateMotorData() {
-            fetch('/motor-diagnostics')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('motorData').innerHTML = 
-                        `<pre>Left Motor:
-  Pulse Count: ${data.left.pulseCount}
-  Last Pulse: ${data.left.lastPulse}ms ago
-  Current PWM: ${data.left.pwm}
-
-Right Motor:
-  Pulse Count: ${data.right.pulseCount}
-  Last Pulse: ${data.right.lastPulse}ms ago
-  Current PWM: ${data.right.pwm}</pre>`;
-                });
-        }
-        //setInterval(updateMotorData, 1000);
-    </script>
-</body>
-</html>
-)rawliteral";
-        server.send(200, "text/html", html);
-    });
-
-    // Add diagnostics endpoint
-    server.on("/motor-diagnostics", HTTP_GET, [this]() {
-        String json = "{";
-        json += "\"left\":{";
-        json += "\"pulseCount\":" + String(leftMotor.getPulseCount()) + ",";
-        json += "\"lastPulse\":" + String(leftMotor.getTimeSinceLastPulse()) + ",";
-        json += "\"pwm\":" + String(leftMotor.getCurrentPwm());
-        json += "},";
-        json += "\"right\":{";
-        json += "\"pulseCount\":" + String(rightMotor.getPulseCount()) + ",";
-        json += "\"lastPulse\":" + String(rightMotor.getTimeSinceLastPulse()) + ",";
-        json += "\"pwm\":" + String(rightMotor.getCurrentPwm());
-        json += "}}";
-        server.send(200, "application/json", json);
     });
 
     // Update endpoint to handle mode changes

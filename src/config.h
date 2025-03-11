@@ -21,8 +21,8 @@
 #define LEFT_TRIG_PIN GPIO_NUM_14
 #define FRONT_ECHO_PIN GPIO_NUM_25
 #define FRONT_TRIG_PIN GPIO_NUM_27
-#define RIGHT_ECHO_PIN GPIO_NUM_32
-#define RIGHT_TRIG_PIN GPIO_NUM_33
+#define RIGHT_ECHO_PIN GPIO_NUM_33
+#define RIGHT_TRIG_PIN GPIO_NUM_32
 
 // Add this for DistanceSensors
 #define NUM_SENSORS 3
@@ -40,14 +40,10 @@
 #define LOG_LEVEL LogLevel::Info  // Enable debug logs
 
 // Navigation constants
-#define MIN_TURN_DISTANCE 150    // 15cm - will cause full turn
-#define TURN_EXPONENT 0.005     // Decay rate for exponential function
-#define FRONT_MULTIPLIER_MAX 3.0 // Maximum turn multiplier from front sensor
-#define MAX_TURN_DISTANCE 500    // Only used for front sensor
-#define BACKUP_MIN_TIME 500      // Minimum backup time in ms
-#define BACKUP_MAX_TIME 1500     // Maximum backup time in ms
-#define TURN_MIN_TIME 300        // Minimum turn time after backup
-#define TURN_MAX_TIME 800        // Maximum turn time after backup
+#define MIN_TURN_DISTANCE 150     // 15cm - will cause full turn
+#define TURN_EXPONENT 0.005      // Decreased for gentler response curve
+#define FRONT_MULTIPLIER_MAX 2.0  // Maximum turn multiplier from front sensor
+#define MAX_TURN_DISTANCE 700     // Increased detection range
 
 // Define FILTERED_CONTEXTS
 #define FILTERED_CONTEXTS 0

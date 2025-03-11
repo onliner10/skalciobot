@@ -10,18 +10,6 @@ void RobotLogic::update() {
         return;  // Only run autonomous logic in Auto mode
     }
 
-    // Check if stuck (no pulses for a while)
-    if (motors.getLeftTimeSinceLastPulse() > 1000 && 
-        motors.getRightTimeSinceLastPulse() > 1000) {
-        handleStuckState();
-        return;
-    }
-
-    if (isPerformingRecovery) {
-        updateRecoveryManeuver();
-        return;
-    }
-
     uint16_t front = sensors.getFrontDistance();
     uint16_t left = sensors.getLeftDistance();
     uint16_t right = sensors.getRightDistance();
@@ -48,63 +36,24 @@ void RobotLogic::update() {
     }
 
     motors.setSteering(steering);
-    motors.setPwm(calculateTargetSpeed(front));
-}
-
-void RobotLogic::handleStuckState() {
-    logger.warning("Robot stuck - starting recovery", LogContext::Navigation);
-    isPerformingRecovery = true;
-    recoveryStartTime = millis();
-    backupDuration = random(BACKUP_MIN_TIME, BACKUP_MAX_TIME);
-    turnDuration = random(TURN_MIN_TIME, TURN_MAX_TIME);
-    recoveryPhase = RecoveryPhase::Backing;
-    
-    // Alternate between forward and backward recovery
-    int recoverySpeed = lastRecoveryWasBackward ? 100 : -100;
-    lastRecoveryWasBackward = !lastRecoveryWasBackward;
-    
-    // Use opposite of current steering direction for recovery
-    float recoveryDirection = -motors.getSteering();
-    if (recoveryDirection == 0) {
-        recoveryDirection = random(2) ? 1.0f : -1.0f;
-    }
-    
-    motors.setSpeedPercent(recoverySpeed);
-    motors.setSteering(recoveryDirection);
-    
-    logger.info("Recovery direction: " + String(recoveryDirection) + 
-                ", Speed Percent: " + String(recoverySpeed), LogContext::Navigation);
-}
-
-void RobotLogic::updateRecoveryManeuver() {
-    unsigned long currentTime = millis();
-    unsigned long elapsedTime = currentTime - recoveryStartTime;
-    
-    switch (recoveryPhase) {
-        case RecoveryPhase::Backing:
-            if (elapsedTime >= backupDuration) {
-                // Keep same steering direction but go forward
-                recoveryPhase = RecoveryPhase::Turning;
-                recoveryStartTime = currentTime;
-                motors.setSpeedPercent(50);  // Half speed for turning
-            }
-            break;
-            
-        case RecoveryPhase::Turning:
-            if (elapsedTime >= turnDuration) {
-                // Recovery complete
-                isPerformingRecovery = false;
-                motors.stop();
-            }
-            break;
-    }
+    motors.setSpeedPercent(calculateTargetSpeed(front));
 }
 
 float RobotLogic::calculateSteering(uint16_t left, uint16_t right) {
-    // Use exponential decay based on distance
-    float leftTurn = exp(-TURN_EXPONENT * left);
-    float rightTurn = exp(-TURN_EXPONENT * right);
-    return rightTurn - leftTurn;  // Positive = turn right, negative = turn left
+    // Calculate normalized distances (0 = very close, 1 = far)
+    float leftNorm = (float)left / MAX_TURN_DISTANCE;
+    float rightNorm = (float)right / MAX_TURN_DISTANCE;
+    
+    // Calculate turn strengths (inverse of distance)
+    float leftTurn = 1.0f - constrain(leftNorm, 0.0f, 1.0f);
+    float rightTurn = 1.0f - constrain(rightNorm, 0.0f, 1.0f);
+    
+    // Apply exponential response curve
+    leftTurn = pow(leftTurn, TURN_EXPONENT * 200);  // Multiplier to make exponent more effective
+    rightTurn = pow(rightTurn, TURN_EXPONENT * 200);
+    
+    // Return difference (positive = turn right, negative = turn left)
+    return leftTurn - rightTurn;
 }
 
 float RobotLogic::calculateFrontMultiplier(uint16_t front) {
@@ -120,7 +69,7 @@ int RobotLogic::calculateTargetSpeed(uint16_t front) {
         constrain(front, MIN_SPEED_DISTANCE, MAX_SPEED_DISTANCE),
         MIN_SPEED_DISTANCE,
         MAX_SPEED_DISTANCE,
-        50,   // Half speed (50%)
+        0,   // Half speed (50%)
         100   // Full speed (100%)
     );
 }
