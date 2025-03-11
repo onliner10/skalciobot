@@ -16,9 +16,9 @@ void DistanceSensors::update() {
     unsigned long now = millis();
     
     if (!measurementStarted && now >= nextMeasurementTime) {
-        frontSensor.startAsync(MEASUREMENT_SPACING * 1000);
-        leftSensor.startAsync(MEASUREMENT_SPACING * 1000);
-        rightSensor.startAsync(MEASUREMENT_SPACING * 1000);
+        frontSensor.startAsync(SENSOR_READ_TIMEOUT * 1000);
+        leftSensor.startAsync(SENSOR_READ_TIMEOUT * 1000);
+        rightSensor.startAsync(SENSOR_READ_TIMEOUT * 1000);
         measurementStarted = true;
         return;
     }

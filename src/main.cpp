@@ -73,12 +73,13 @@ void setup() {
     levelLogger->info("Web interfaces ready", LogContext::Boot);
     robot.begin();
     levelLogger->info("System boot complete", LogContext::Boot);
+    
+    // Remove timer initialization from here
 }
 
 void loop() {
     sensors.update();
-    motors.update();
-    // Remove motor update calls since they're no longer needed
+    // Remove motors.update() since PID is now timer-driven
     robot.update();
     levelLogger->update();
     

@@ -8,36 +8,28 @@ void MotorController::begin() {
     
     leftMotor.begin();
     rightMotor.begin();
+    
+    // Initialize PID timer
+    if (!TimerManager::begin(this, STEERING_PID_INTERVAL * 1000)) {
+        logger.error("Failed to initialize PID timer", LogContext::Motor);
+    }
+}
+
+MotorController::~MotorController() {
+    TimerManager::cleanup();
 }
 
 void MotorController::setSteering(float steering) {
     targetSteeringRatio = constrain(steering, -1.0f, 1.0f);
-    updatePID();
 }
 
 void MotorController::setSpeedPercent(float percent) {
     speedPercent = constrain(percent, -100.0f, 100.0f);
-    updatePID();
-}
-
-void MotorController::update() {
-    if (checkFault()) {
-        stop();
-        return;
-    }
-
-    unsigned long now = millis();
-    if (now - lastPidUpdate >= PID_UPDATE_INTERVAL) {
-        updatePID();
-        lastPidUpdate = now;
-    }
 }
 
 float MotorController::calculateCurrentSteeringRatio() const {
     float leftSpeed = leftMotor.getCurrentSpeed();
     float rightSpeed = rightMotor.getCurrentSpeed();
-    
-    logger.debug("Speed (pulses) - L:" + String(leftSpeed) + " R:" + String(rightSpeed), LogContext::Motor);
     
     // Avoid division by zero and very small values
     if (abs(leftSpeed) < 2.0f && abs(rightSpeed) < 2.0f) {
@@ -58,7 +50,6 @@ float MotorController::calculateCurrentSteeringRatio() const {
     }
     ratio = constrain(ratio, -1.0f, 1.0f);
     
-    logger.debug("Steering ratio: " + String(ratio), LogContext::Motor);
     return ratio;
 }
 
@@ -68,85 +59,50 @@ void MotorController::updatePID() {
         return;
     }
 
+    if (checkFault()) {
+        stop();
+        return;
+    }
+
     float currentRatio = calculateCurrentSteeringRatio();
     float error = targetSteeringRatio - currentRatio;
-    
-    float deltaTime = PID_UPDATE_INTERVAL / 1000.0f;
     
     // Reset integral when changing direction
     if (signbit(error) != signbit(lastSteeringError)) {
         steeringIntegral = 0;
     }
     
-    steeringIntegral += error * deltaTime;
+    steeringIntegral += error * (STEERING_PID_INTERVAL / 1000.0f);
     steeringIntegral = constrain(steeringIntegral, -STEERING_INTEGRAL_LIMIT, STEERING_INTEGRAL_LIMIT);
     
-    float derivative = (error - lastSteeringError) / deltaTime;
+    float derivative = (error - lastSteeringError) / (STEERING_PID_INTERVAL / 1000.0f);
     
-    // Calculate correction but make it more aggressive
     float correction = (KP * error) + (KI * steeringIntegral) + (KD * derivative);
     correction = constrain(correction, -1.0f, 1.0f);
     
-    logger.debug("PID components - P:" + String(KP * error) + 
-                " I:" + String(KI * steeringIntegral) + 
-                " D:" + String(KD * derivative) + 
-                " Total:" + String(correction), LogContext::Motor);
+    float basePwm = (speedPercent / 100.0f) * ((1 << MOTOR_PWM_RESOLUTION) - 1);
+    float leftPwm = basePwm * (1.0f + correction) * leftMotorScale;
+    float rightPwm = basePwm * (1.0f - correction) * rightMotorScale;
     
-    // Calculate base PWM from speed percent using 10-bit range
-    float basePwm = (speedPercent / 100.0f) * 1023.0f;
-    float leftPwm = basePwm;
-    float rightPwm = basePwm;
-    
-    leftPwm *= (1.0f + correction);
-    rightPwm *= (1.0f - correction);
-    
-    // Maintain the sign of the original speed
     if (speedPercent < 0) {
         leftPwm = -leftPwm;
         rightPwm = -rightPwm;
     }
 
-    logger.debug("PWM - L:" + String(leftPwm) + " R:" + String(rightPwm) + 
-                " Correction:" + String(correction), LogContext::Motor);
+    // Apply PWM directly
+    leftMotor.setPwm(leftPwm);
+    rightMotor.setPwm(rightPwm);
     
-    // Remove enable() call - motors are now managed by RobotState
-    
-    applyMotorOutputs(leftPwm, rightPwm);
     lastSteeringError = error;
 }
 
-bool MotorController::shouldUpdatePwm(float leftPwm, float rightPwm) const {
-    // Check if enough time has passed
-    if (millis() - lastPwmUpdate < MOTOR_PWM_MIN_UPDATE_INTERVAL) {
-        return false;
-    }
-    
-    // Check if change is significant enough for either motor
-    if (abs(leftPwm - lastLeftPwm) < MOTOR_PWM_MIN_CHANGE &&
-        abs(rightPwm - lastRightPwm) < MOTOR_PWM_MIN_CHANGE) {
-        return false;
-    }
-    
-    return true;
-}
-
 void MotorController::applyMotorOutputs(float leftPwm, float rightPwm) {
-    if (!shouldUpdatePwm(leftPwm, rightPwm)) {
-        return;
-    }
-    
     // Apply motor scaling factors
     leftPwm *= leftMotorScale;
     rightPwm *= rightMotorScale;
     
     leftMotor.setPwm(int(constrain(leftPwm, -1023.0f, 1023.0f)));
     rightMotor.setPwm(int(constrain(rightPwm, -1023.0f, 1023.0f)));
-    
-    lastLeftPwm = leftPwm;
-    lastRightPwm = rightPwm;
-    lastOutputLeftPwm = leftPwm;
-    lastOutputRightPwm = rightPwm;
-    lastPwmUpdate = millis();
 }
 
 void MotorController::stop() {
@@ -154,8 +110,6 @@ void MotorController::stop() {
     targetSteeringRatio = 0;
     steeringIntegral = 0;
     lastSteeringError = 0;
-    lastOutputLeftPwm = 0;
-    lastOutputRightPwm = 0;
     leftMotor.stop();
     rightMotor.stop();
 }
@@ -170,13 +124,17 @@ void MotorController::test() {
         return;
     }
     
-    // Start test directly, no need to manage sleep pin
-    setSpeedPercent(50);  // Half speed forward
-    delay(1000);
+    const int testPwm = 1023;  // Half of 10-bit range (1024)
+    
+    // Test forward
+    leftMotor.setPwm(testPwm);
+    rightMotor.setPwm(testPwm);
+    delay(2000);
     
     // Test backward
-    setSpeedPercent(-50); // Half speed backward
-    delay(1000);
+    leftMotor.setPwm(-testPwm);
+    rightMotor.setPwm(-testPwm);
+    delay(2000);
     
     stop();
 }
@@ -185,7 +143,6 @@ void MotorController::calibrateMotors() {
     if (!state.isEnabled()) return;
     
     logger.info("Starting motor calibration...", LogContext::Motor);
-    // Remove enable() call - motors are now managed by RobotState
     delay(1);
     
     // Reset speed buffers
@@ -193,8 +150,10 @@ void MotorController::calibrateMotors() {
     rightMotor.stop();
     delay(100);
     
-    // Run motors at calibration speed
-    setSpeedPercent(MOTOR_CALIBRATION_SPEED);
+    // Run motors at calibration PWM
+    const int calibrationPwm = (1 << MOTOR_PWM_RESOLUTION) / 2;  // 50% of max PWM
+    leftMotor.setPwm(calibrationPwm);
+    rightMotor.setPwm(calibrationPwm);
     delay(MOTOR_CALIBRATION_TIME);
     
     // Get average speeds
