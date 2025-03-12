@@ -32,7 +32,7 @@ float RobotLogic::calculateSteering(uint16_t left, uint16_t right, uint16_t fron
     
     // Calculate base steering from side sensors
     // Use square root to make the response more gentle
-    float steering = sqrt(rightClearance) - sqrt(leftClearance);
+    float steering = (0.3 * rightClearance + (rightClearance, 2)) - (0.3 * leftClearance + (leftClearance, 2));
     
     // In near-deadzone situations (almost equal side clearances), 
     // pick turn direction based on smallest noise difference
@@ -45,7 +45,7 @@ float RobotLogic::calculateSteering(uint16_t left, uint16_t right, uint16_t fron
     float frontInfluence = 1.0f - constrain((float)front / (MAX_SENSOR_DISTANCE ), 0.0f, 1.0f);
     
     // Reduce multiplier from 0.5 to 0.35 for gentler influence
-    steering *= (1.0f + 0.05f * frontInfluence + pow(frontInfluence, 7));  // Max 1.35x amplification when front is blocked
+    steering *= (1.0f + 0.1f * frontInfluence + pow(frontInfluence, 5));  // Max 1.35x amplification when front is blocked
     
     return constrain(steering, -1.0f, 1.0f);
 }

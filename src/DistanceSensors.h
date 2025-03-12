@@ -4,16 +4,18 @@
 #include "config.h"
 #include "Logger.h"
 
-#define FRONT_SENSOR 0
-#define LEFT_SENSOR  1
-#define RIGHT_SENSOR 2
+enum SensorIndex {
+    LEFT_SENSOR = 0,
+    RIGHT_SENSOR = 1,
+    FRONT_SENSOR = 2
+};
 
 class DistanceSensors {
 private:
     Logger& logger;
     uint16_t lastMeasurements[NUM_SENSORS];
     unsigned long lastReadTime[NUM_SENSORS];
-    uint8_t currentSensor = 0;  // Add this line
+    SensorIndex currentSensor = LEFT_SENSOR;  // Changed from uint8_t to SensorIndex
     
     HC_SR04<FRONT_ECHO_PIN> frontSensor;
     HC_SR04<LEFT_ECHO_PIN> leftSensor;
@@ -21,7 +23,7 @@ private:
     
     bool measurementStarted = false;
     unsigned long nextMeasurementTime = 0;
-    static constexpr unsigned long MEASUREMENT_SPACING = SENSOR_READ_INTERVAL;  // ms between measurements
+    static constexpr unsigned long MEASUREMENT_SPACING = SENSOR_CYCLE_TIME;  // ms between measurements
     bool measurementUpdated = false;
 
 public:

@@ -26,10 +26,10 @@
 
 // Basic configuration
 #define NUM_SENSORS 3
-#define SENSOR_READ_INTERVAL 33    // Time between measurement groups
-#define SENSOR_READ_TIMEOUT 15     // Max time to wait for echo (15ms = ~250cm)
-#define MAX_SENSOR_DISTANCE 1300     
-#define MIN_FRONT_STEERING 0.3f
+#define SENSOR_READ_TIMEOUT 8      // 8ms timeout for 1.3m max range
+#define SENSOR_CYCLE_TIME 50      // Minimum time between sensor triggers (ms)
+#define MAX_SENSOR_DISTANCE 1300   // Maximum detection range in mm
+#define MIN_FRONT_STEERING 0.3f    // Minimum steering correction when obstacle in front
 
 // Speed control
 #define MIN_SPEED_PERCENT 60      
@@ -59,7 +59,7 @@
 #define STEERING_PID_KP 1.0f    // Full opposing motor speeds at maximum error
 #define STEERING_PID_KI 0.05f    // Start without integral term
 #define STEERING_PID_KD 0.2f    // Start without derivative term
-#define STEERING_PID_INTERVAL 5   // Reduced from 10ms for faster updates
+#define STEERING_PID_INTERVAL 10   // Reduced from 10ms for faster updates
 #define STEERING_INTEGRAL_LIMIT 1.0f // Limit for integral term
 
 // Motor calibration
