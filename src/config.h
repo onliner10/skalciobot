@@ -26,9 +26,9 @@
 
 // Basic configuration
 #define NUM_SENSORS 3
-#define SENSOR_READ_INTERVAL 20    // Time between measurement groups
+#define SENSOR_READ_INTERVAL 33    // Time between measurement groups
 #define SENSOR_READ_TIMEOUT 15     // Max time to wait for echo (15ms = ~250cm)
-#define MAX_SENSOR_DISTANCE 1000     
+#define MAX_SENSOR_DISTANCE 1300     
 #define MIN_FRONT_STEERING 0.3f
 
 // Speed control

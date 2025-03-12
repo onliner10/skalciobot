@@ -16,39 +16,60 @@ void DistanceSensors::update() {
     unsigned long now = millis();
     
     if (!measurementStarted && now >= nextMeasurementTime) {
-        frontSensor.startAsync(SENSOR_READ_TIMEOUT * 1000);
-        leftSensor.startAsync(SENSOR_READ_TIMEOUT * 1000);
-        rightSensor.startAsync(SENSOR_READ_TIMEOUT * 1000);
+        switch(currentSensor) {
+            case FRONT_SENSOR:
+                frontSensor.startAsync(SENSOR_READ_TIMEOUT * 1000);
+                break;
+            case LEFT_SENSOR:
+                leftSensor.startAsync(SENSOR_READ_TIMEOUT * 1000);
+                break;
+            case RIGHT_SENSOR:
+                rightSensor.startAsync(SENSOR_READ_TIMEOUT * 1000);
+                break;
+        }
         measurementStarted = true;
         return;
     }
 
-    if (measurementStarted && 
-        frontSensor.isFinished() && 
-        leftSensor.isFinished() && 
-        rightSensor.isFinished()) {
-        
-        // Get readings and handle errors
-        uint16_t frontDist = frontSensor.getDist_mm();
-        uint16_t leftDist = leftSensor.getDist_mm();
-        uint16_t rightDist = rightSensor.getDist_mm();
-        
-        // Store readings with error handling and MAX_SENSOR_DISTANCE constraint
-        lastMeasurements[FRONT_SENSOR] = frontDist > 0 ? min(frontDist, (uint16_t)MAX_SENSOR_DISTANCE) : (uint16_t)MAX_SENSOR_DISTANCE;
-        lastMeasurements[LEFT_SENSOR] = leftDist > 0 ? min(leftDist, (uint16_t)MAX_SENSOR_DISTANCE) : (uint16_t)MAX_SENSOR_DISTANCE;
-        lastMeasurements[RIGHT_SENSOR] = rightDist > 0 ? min(rightDist, (uint16_t)MAX_SENSOR_DISTANCE) : (uint16_t)MAX_SENSOR_DISTANCE;
+    bool sensorFinished = false;
+    uint16_t distance = 0;
 
-        // Log errors if any
-        if (frontDist == 0) logger.debug("Front sensor - No echo", LogContext::Sensor);
-        if (leftDist == 0) logger.debug("Left sensor - No echo", LogContext::Sensor);
-        if (rightDist == 0) logger.debug("Right sensor - No echo", LogContext::Sensor);
+    switch(currentSensor) {
+        case FRONT_SENSOR:
+            sensorFinished = frontSensor.isFinished();
+            if (sensorFinished) distance = frontSensor.getDist_mm();
+            break;
+        case LEFT_SENSOR:
+            sensorFinished = leftSensor.isFinished();
+            if (sensorFinished) distance = leftSensor.getDist_mm();
+            break;
+        case RIGHT_SENSOR:
+            sensorFinished = rightSensor.isFinished();
+            if (sensorFinished) distance = rightSensor.getDist_mm();
+            break;
+    }
 
-        for(int i = 0; i < NUM_SENSORS; i++) {
-            lastReadTime[i] = now;
+    if (measurementStarted && sensorFinished) {
+        if (distance == 0) {
+            const char* sensorNames[] = {"Front", "Left", "Right"};
+            logger.debug(String(sensorNames[currentSensor]) + " sensor - No echo", LogContext::Sensor);
+            lastMeasurements[currentSensor] = MAX_SENSOR_DISTANCE;
+        } else {
+            lastMeasurements[currentSensor] = min(distance, (uint16_t)MAX_SENSOR_DISTANCE);
         }
-
+        
+        lastReadTime[currentSensor] = now;
         measurementStarted = false;
-        measurementUpdated = true;  // Set flag for new measurements
-        nextMeasurementTime = now + MEASUREMENT_SPACING;
+        measurementUpdated = true;  // Set flag as soon as any sensor is updated
+        
+        // Move to next sensor
+        currentSensor = (currentSensor + 1) % NUM_SENSORS;
+        
+        // Set delay only if we're not done with all sensors
+        if (currentSensor != 0) {
+            nextMeasurementTime = now + MEASUREMENT_SPACING;
+        } else {
+            nextMeasurementTime = now;
+        }
     }
 }

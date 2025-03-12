@@ -42,10 +42,10 @@ float RobotLogic::calculateSteering(uint16_t left, uint16_t right, uint16_t fron
     
     // Get normalized front distance influence (0 = far, 1 = close)
     // Start influence even earlier but make it more gradual
-    float frontInfluence = 1.0f - constrain((float)front / (MAX_SENSOR_DISTANCE * 0.9f), 0.0f, 1.0f);
+    float frontInfluence = 1.0f - constrain((float)front / (MAX_SENSOR_DISTANCE ), 0.0f, 1.0f);
     
     // Reduce multiplier from 0.5 to 0.35 for gentler influence
-    steering *= (1.0f + frontInfluence * 0.35f);  // Max 1.35x amplification when front is blocked
+    steering *= (1.0f + 0.05f * frontInfluence + pow(frontInfluence, 7));  // Max 1.35x amplification when front is blocked
     
     return constrain(steering, -1.0f, 1.0f);
 }

@@ -13,6 +13,7 @@ private:
     Logger& logger;
     uint16_t lastMeasurements[NUM_SENSORS];
     unsigned long lastReadTime[NUM_SENSORS];
+    uint8_t currentSensor = 0;  // Add this line
     
     HC_SR04<FRONT_ECHO_PIN> frontSensor;
     HC_SR04<LEFT_ECHO_PIN> leftSensor;
