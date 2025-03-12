@@ -45,14 +45,24 @@ float RobotLogic::calculateSteering(uint16_t left, uint16_t right, uint16_t fron
     float frontInfluence = 1.0f - constrain((float)front / (MAX_SENSOR_DISTANCE ), 0.0f, 1.0f);
     
     // Reduce multiplier from 0.5 to 0.35 for gentler influence
-    steering *= (1.0f + 0.1f * frontInfluence + pow(frontInfluence, 5));  // Max 1.35x amplification when front is blocked
+    steering *= (1.0f + 4 * pow(frontInfluence, 4));  // Max 1.35x amplification when front is blocked
     
     return constrain(steering, -1.0f, 1.0f);
 }
 
 int RobotLogic::calculateTargetSpeed(uint16_t front) {
-    // Linear speed control based on front distance
-    // float speedFactor = (float)front / MAX_SENSOR_DISTANCE;
-    // return MIN_SPEED_PERCENT + (speedFactor * (MAX_SPEED_PERCENT - MIN_SPEED_PERCENT));
-    return MIN_SPEED_PERCENT;
+    // Find minimum distance from all sensors
+    uint16_t minDistance = min(front, min(sensors.getLeftDistance(), sensors.getRightDistance()));
+    
+    if (minDistance < SPEED_THRESHOLD_MM) {
+        // Linear decrease below threshold
+        float speedFactor = (float)minDistance / SPEED_THRESHOLD_MM;
+        speedFactor = pow(speedFactor, 3);  // Square for more aggressive slowdown
+        return MIN_SPEED_PERCENT + (speedFactor * (MAX_SPEED_PERCENT - MIN_SPEED_PERCENT) * 0.5f);
+    } else {
+        // Quick exponential increase above threshold
+        float overshoot = (float)(minDistance - SPEED_THRESHOLD_MM) / (MAX_SENSOR_DISTANCE - SPEED_THRESHOLD_MM);
+        float speedFactor = 0.5f + (1.0f - exp(-overshoot * 3)) * 0.5f;
+        return MIN_SPEED_PERCENT + (speedFactor * (MAX_SPEED_PERCENT - MIN_SPEED_PERCENT));
+    }
 }

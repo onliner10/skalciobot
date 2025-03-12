@@ -27,13 +27,14 @@
 // Basic configuration
 #define NUM_SENSORS 3
 #define SENSOR_READ_TIMEOUT 8      // 8ms timeout for 1.3m max range
-#define SENSOR_CYCLE_TIME 50      // Minimum time between sensor triggers (ms)
+#define SENSOR_CYCLE_TIME 33      // Minimum time between sensor triggers (ms)
 #define MAX_SENSOR_DISTANCE 1300   // Maximum detection range in mm
 #define MIN_FRONT_STEERING 0.3f    // Minimum steering correction when obstacle in front
 
 // Speed control
-#define MIN_SPEED_PERCENT 60      
-#define MAX_SPEED_PERCENT 50     // Back to full speed
+#define SPEED_THRESHOLD_MM 600    // Distance threshold for speed transition
+#define MIN_SPEED_PERCENT 40      // Minimum speed when close to obstacles
+#define MAX_SPEED_PERCENT 100     // Maximum speed when path is clear
 
 // Debug configuration
 #define ENABLE_DEBUG_LOGS true    // Set to false to disable debug messages
