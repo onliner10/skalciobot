@@ -106,7 +106,7 @@ int RobotLogic::calculateTargetSpeed(uint16_t front) {
     if (minDistance < SPEED_THRESHOLD_MM) {
         // Linear decrease below threshold
         float speedFactor = (float)minDistance / SPEED_THRESHOLD_MM;
-        speedFactor = pow(speedFactor, 2);  // Square for more aggressive slowdown
+        speedFactor = pow(speedFactor, 3);  // Square for more aggressive slowdown
         return MIN_SPEED_PERCENT + (speedFactor * (MAX_SPEED_PERCENT - MIN_SPEED_PERCENT));
     } else {
         // Quick exponential increase above threshold

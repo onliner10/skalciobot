@@ -32,8 +32,8 @@
 #define MIN_FRONT_STEERING 0.3f    // Minimum steering correction when obstacle in front
 
 // Speed control
-#define SPEED_THRESHOLD_MM 500    // Distance threshold for speed transition
-#define MIN_SPEED_PERCENT 50      // Minimum speed when close to obstacles
+#define SPEED_THRESHOLD_MM 700    // Distance threshold for speed transition
+#define MIN_SPEED_PERCENT 40      // Minimum speed when close to obstacles
 #define MAX_SPEED_PERCENT 100     // Maximum speed when path is clear
 
 // Debug configuration
