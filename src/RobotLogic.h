@@ -35,4 +35,5 @@ public:
         return backupUntil > 0 ? backupUntil - millis() : 0;
     }
     void testBackup();  // Add test function for backup
+    void resetStuckDetection() { stuckDetector.resetDetection(); }
 };

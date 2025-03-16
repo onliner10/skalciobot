@@ -79,9 +79,15 @@ void setup() {
 
 void loop() {
     sensors.update();
-    motors.update();  // Restore this line
+    motors.update();
     robot.update();
     levelLogger->update();
+    
+    // Check if we should auto-switch to auto mode
+    if (robotState.shouldSwitchToAuto()) {
+        levelLogger->info("Auto-switching to AUTO mode after inactivity", LogContext::System);
+        robotState.setMode(OperationMode::Auto);
+    }
     
     ota.update();
     appServer.handleClient();

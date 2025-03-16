@@ -21,6 +21,7 @@ void RobotLogic::update() {
             backupUntil = 0;
             motors.setBackupMode(false);  // Clear backup mode flag
             motors.stop();
+            stuckDetector.notifyBackupCompleted(); // Notify detector of backup completion
         } else {
             // Force backup movement with direct motor control to avoid steering issues
             int backupTime = backupUntil - currentTime;
@@ -103,17 +104,15 @@ int RobotLogic::calculateTargetSpeed(uint16_t front) {
     // Find minimum distance from all sensors
     uint16_t minDistance = min(front, min(sensors.getLeftDistance(), sensors.getRightDistance()));
     
-    if (minDistance < SPEED_THRESHOLD_MM) {
-        // Linear decrease below threshold
-        float speedFactor = (float)minDistance / SPEED_THRESHOLD_MM;
-        speedFactor = pow(speedFactor, 3);  // Square for more aggressive slowdown
-        return MIN_SPEED_PERCENT + (speedFactor * (MAX_SPEED_PERCENT - MIN_SPEED_PERCENT));
-    } else {
-        // Quick exponential increase above threshold
-        float overshoot = (float)(minDistance - SPEED_THRESHOLD_MM) / (MAX_SENSOR_DISTANCE - SPEED_THRESHOLD_MM);
-        float speedFactor = 0.5f + (1.0f - exp(-overshoot * 3)) * 0.5f;
-        return MIN_SPEED_PERCENT + (speedFactor * (MAX_SPEED_PERCENT - MIN_SPEED_PERCENT));
-    }
+    // Use sigmoid function for smooth speed transition
+    // sigmoid(x) = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * (1 / (1 + e^(-k*(x-midpoint))))
+    float k = SPEED_SIGMOID_SLOPE;          // Controls steepness of transition
+    float midpoint = SPEED_THRESHOLD_MM;    // Inflection point of sigmoid
+    
+    float normalizedSpeed = 1.0f / (1.0f + exp(-k * (minDistance - midpoint)));
+    
+    // Convert to speed percentage between MIN and MAX
+    return MIN_SPEED_PERCENT + normalizedSpeed * (MAX_SPEED_PERCENT - MIN_SPEED_PERCENT);
 }
 
 // Add this method to test backup

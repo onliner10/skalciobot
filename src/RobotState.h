@@ -1,5 +1,6 @@
 #pragma once
 #include "Logger.h"
+#include "config.h"  // Add include for AUTO_SWITCH_TIMEOUT
 
 enum class OperationMode {
     Off,
@@ -11,15 +12,17 @@ class RobotState {
 private:
     OperationMode mode = OperationMode::Off;
     Logger& logger;
-    bool autoMode = false;
     bool sleeping = true;  // Start with motors sleeping
-    const int sleepPin;
+    const int motorSleepPin;  // Fix name to match constructor
+    unsigned long lastActivityTime = 0;
+    bool autoSwitchEnabled = true;
 
 public:
-    RobotState(Logger& l, int sleepPinNumber) 
-        : logger(l), sleepPin(sleepPinNumber) {
-        pinMode(sleepPin, OUTPUT);
-        digitalWrite(sleepPin, sleeping ? LOW : HIGH);
+    RobotState(Logger& l, int sleepPin) 
+        : logger(l), motorSleepPin(sleepPin), mode(OperationMode::Off) {
+        pinMode(motorSleepPin, OUTPUT);
+        digitalWrite(motorSleepPin, sleeping ? LOW : HIGH);
+        lastActivityTime = millis();  // Initialize activity timer
     }
 
     OperationMode getMode() const { return mode; }
@@ -31,7 +34,7 @@ public:
         bool shouldSleep = (newMode == OperationMode::Off);
         if (sleeping != shouldSleep) {
             sleeping = shouldSleep;
-            digitalWrite(sleepPin, sleeping ? LOW : HIGH);
+            digitalWrite(motorSleepPin, sleeping ? LOW : HIGH);
             logger.debug(String("Motors ") + (sleeping ? "sleeping" : "waking up"), 
                         LogContext::Motor);
         }
@@ -46,4 +49,12 @@ public:
     bool isManual() const { return mode == OperationMode::Manual; }
     bool isOff() const { return mode == OperationMode::Off; }
     bool isEnabled() const { return !isOff(); }
+    void resetActivityTimer() { lastActivityTime = millis(); }
+    bool shouldSwitchToAuto() const {
+        return autoSwitchEnabled && 
+               !isAuto() && 
+               (millis() - lastActivityTime > AUTO_SWITCH_TIMEOUT);
+    }
+    void setAutoSwitchEnabled(bool enabled) { autoSwitchEnabled = enabled; }
+    bool isAutoSwitchEnabled() const { return autoSwitchEnabled; }
 };

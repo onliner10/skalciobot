@@ -360,6 +360,7 @@ void WebInterface::begin() {
         if(server.hasArg("value")) {
             float speed = server.arg("value").toFloat();
             if (speed >= -100 && speed <= 100) {
+                robotState.resetActivityTimer();  // Reset inactivity timer
                 motors.setSpeedPercent(speed);
                 server.send(200, "text/plain", "OK");
             } else {
@@ -377,6 +378,7 @@ void WebInterface::begin() {
         if(server.hasArg("value")) {
             float steering = server.arg("value").toFloat();
             if (steering >= -1.0f && steering <= 1.0f) {
+                robotState.resetActivityTimer();  // Reset inactivity timer
                 motors.setSteering(steering);
                 server.send(200, "text/plain", "OK");
             } else {
@@ -426,12 +428,14 @@ void WebInterface::begin() {
 
     server.on("/mode/MANUAL", HTTP_GET, [this]() {
         robotState.setMode(OperationMode::Manual);
+        robotState.resetActivityTimer();  // Reset inactivity timer
         motors.stop();
         server.send(200, "text/plain", "MANUAL");
     });
 
     server.on("/mode/AUTO", HTTP_GET, [this]() {
         robotState.setMode(OperationMode::Auto);
+        robot.resetStuckDetection(); // Reset stuck detection when switching to auto
         motors.stop();
         server.send(200, "text/plain", "AUTO");
     });

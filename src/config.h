@@ -27,14 +27,16 @@
 // Basic configuration
 #define NUM_SENSORS 3
 #define SENSOR_READ_TIMEOUT 8      // 8ms timeout for 1.3m max range
-#define SENSOR_CYCLE_TIME 33      // Minimum time between sensor triggers (ms)
+#define SENSOR_CYCLE_TIME 10      // Minimum time between sensor triggers (ms)
 #define MAX_SENSOR_DISTANCE 1300   // Maximum detection range in mm
 #define MIN_FRONT_STEERING 0.3f    // Minimum steering correction when obstacle in front
 
 // Speed control
-#define SPEED_THRESHOLD_MM 700    // Distance threshold for speed transition
-#define MIN_SPEED_PERCENT 40      // Minimum speed when close to obstacles
-#define MAX_SPEED_PERCENT 100     // Maximum speed when path is clear
+#define SPEED_THRESHOLD_MM 500     // Midpoint for speed transition sigmoid
+#define SPEED_SIGMOID_SLOPE 0.12f  // Slope parameter for sigmoid function (higher = sharper transition)
+// Wolfram Alpha expression: plot 40 + 60/(1 + exp(-0.01*(x-600))) for x=0 to 1300
+#define MIN_SPEED_PERCENT 40       // Minimum speed when close to obstacles
+#define MAX_SPEED_PERCENT 100      // Maximum speed when path is clear
 
 // Debug configuration
 #define ENABLE_DEBUG_LOGS true    // Set to false to disable debug messages
@@ -70,10 +72,15 @@
 #define DEFAULT_RIGHT_MOTOR_SCALE 1.0f // Default scaling factor
 
 // Stuck detector configuration
-#define STUCK_HISTORY_SIZE 20      // 1 second of readings at 50ms intervals
-#define STUCK_MIN_STDDEV 20.0f      // Minimum standard deviation of deltas in mm
+#define STUCK_HISTORY_SIZE 40      // 1 second of readings at 50ms intervals
+#define STUCK_MIN_STDDEV_LOW_SPEED 15.0f   // Lower threshold for high speeds
+#define STUCK_MIN_STDDEV_HIGH_SPEED 45.0f  // Higher threshold for low speeds
 #define STUCK_ENCODER_TIME 500     // Time in ms before considering encoder stuck
 #define STUCK_UPDATE_INTERVAL 50   // Update interval in ms
 #define STUCK_BACKUP_MIN_TIME 1000  // Minimum backup time
 #define STUCK_BACKUP_MAX_TIME 2000  // Maximum backup time
 #define STUCK_BACKUP_SPEED 60       // Increase backup speed for more reliable movement
+#define STUCK_BACKUP_COOLDOWN 3000  // Wait at least 3 seconds before triggering another backup
+
+// Auto mode configuration
+#define AUTO_SWITCH_TIMEOUT 30000  // Time in ms to automatically switch to auto mode (30 seconds)
