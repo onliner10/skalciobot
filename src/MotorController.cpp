@@ -52,6 +52,11 @@ void MotorController::update() {
     }
     lastPidUpdate = now;
 
+    // Skip normal updates if in backup mode
+    if (backupModeActive) {
+        return;
+    }
+
     if (!state.isEnabled() || speedPercent == 0) {
         stop();
         return;

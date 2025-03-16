@@ -32,8 +32,8 @@
 #define MIN_FRONT_STEERING 0.3f    // Minimum steering correction when obstacle in front
 
 // Speed control
-#define SPEED_THRESHOLD_MM 600    // Distance threshold for speed transition
-#define MIN_SPEED_PERCENT 40      // Minimum speed when close to obstacles
+#define SPEED_THRESHOLD_MM 500    // Distance threshold for speed transition
+#define MIN_SPEED_PERCENT 50      // Minimum speed when close to obstacles
 #define MAX_SPEED_PERCENT 100     // Maximum speed when path is clear
 
 // Debug configuration
@@ -68,3 +68,12 @@
 #define MOTOR_CALIBRATION_SPEED 50     // Speed percent to use for calibration
 #define DEFAULT_LEFT_MOTOR_SCALE 0.79f  // Default scaling factor
 #define DEFAULT_RIGHT_MOTOR_SCALE 1.0f // Default scaling factor
+
+// Stuck detector configuration
+#define STUCK_HISTORY_SIZE 20      // 1 second of readings at 50ms intervals
+#define STUCK_MIN_STDDEV 20.0f      // Minimum standard deviation of deltas in mm
+#define STUCK_ENCODER_TIME 500     // Time in ms before considering encoder stuck
+#define STUCK_UPDATE_INTERVAL 50   // Update interval in ms
+#define STUCK_BACKUP_MIN_TIME 1000  // Minimum backup time
+#define STUCK_BACKUP_MAX_TIME 2000  // Maximum backup time
+#define STUCK_BACKUP_SPEED 60       // Increase backup speed for more reliable movement

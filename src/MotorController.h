@@ -34,6 +34,8 @@ private:
     float rightMotorScale = DEFAULT_RIGHT_MOTOR_SCALE;
     void calibrateMotors();
 
+    bool backupModeActive = false;  // Flag to prevent interference during backup
+
 public:
     MotorController(Motor& left, Motor& right, int flt, RobotState& s, Logger& log);
     void begin();
@@ -52,4 +54,9 @@ public:
     void calibrate() { calibrateMotors(); }
     float getLeftScale() const { return leftMotorScale; }
     float getRightScale() const { return rightMotorScale; }
+    Motor& getLeftMotor() { return leftMotor; }
+    Motor& getRightMotor() { return rightMotor; }
+
+    void setBackupMode(bool active) { backupModeActive = active; }
+    bool isInBackupMode() const { return backupModeActive; }
 };

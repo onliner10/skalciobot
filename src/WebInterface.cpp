@@ -53,9 +53,11 @@ void WebInterface::begin() {
         <h2>Motor Control</h2>
         <div class="motor-stats">
             <div>Status: <span id="motorStatus">Stopped</span></div>
+            <div>Stuck Detection: <span id="stuckStatus" style="font-weight: bold;">Unknown</span></div>
         </div>
         <button onclick="testMotors()">TEST MOTORS</button>
         <button onclick="calibrateMotors()">CALIBRATE</button>
+        <button onclick="testBackup()">TEST BACKUP</button>
         <div id="calibrationStatus"></div>
         <div class="control-input">
             <label for="speed">Speed:</label>
@@ -95,10 +97,8 @@ void WebInterface::begin() {
     <script>
         let lastSteeringUpdate = 0;
         const THROTTLE_MS = 100;  // Only send one command per 100ms
-
         function updateSteering(value) {
             document.getElementById("steeringValue").textContent = value;
-            
             const now = Date.now();
             if (now - lastSteeringUpdate > THROTTLE_MS) {
                 lastSteeringUpdate = now;
@@ -107,7 +107,6 @@ void WebInterface::begin() {
                 setTimeout(() => document.getElementById("steering").style.opacity = "1", 100);
             }
         }
-
         function stopMotors() {
             fetch("/motors/stop");
             document.getElementById("speed").value = 0;
@@ -122,7 +121,6 @@ void WebInterface::begin() {
                     document.getElementById("right").textContent = data.right;
                 });
         }
-
         function updateLogs() {
             fetch("/log")
                 .then(response => response.text())
@@ -137,6 +135,11 @@ void WebInterface::begin() {
                 console.log("Motor test started");
             });
         }
+        function testBackup() {
+            fetch("/motors/test_backup").then(response => {
+                console.log("Backup test started");
+            });
+        }
         function toggleMode() {
             fetch("/mode/toggle")
                 .then(response => response.text())
@@ -145,7 +148,6 @@ void WebInterface::begin() {
                     stopMotors();  // Always stop motors when changing modes
                 });
         }
-
         function toggleState() {
             fetch("/toggle")
                 .then(response => response.text())
@@ -156,7 +158,6 @@ void WebInterface::begin() {
                     }
                 });
         }
-
         // Fix state update function to use 'mode' element instead of non-existent 'state'
         function updateState() {
             fetch("/status")
@@ -165,13 +166,33 @@ void WebInterface::begin() {
                     document.getElementById("mode").textContent = state;
                 });
         }
-
+        function updateStuckStatus() {
+            fetch("/status/stuck")
+                .then(response => response.json())
+                .then(data => {
+                    const stuckElem = document.getElementById("stuckStatus");
+                    if (data.stuck) {
+                        stuckElem.textContent = "STUCK";
+                        stuckElem.style.color = "#ff4444";
+                    } else if (data.backupRemaining > 0) {
+                        stuckElem.textContent = "Backing up (" + (data.backupRemaining/1000).toFixed(1) + "s)";
+                        stuckElem.style.color = "#ff8800";
+                    } else {
+                        stuckElem.textContent = "Normal";
+                        stuckElem.style.color = "#44aa44";
+                    }
+                });
+        }
         let sensorUpdateInterval;
         let logsUpdateInterval;
 
         function startSensorUpdates() {
-            updateSensors(); // Update immediately
-            sensorUpdateInterval = setInterval(updateSensors, 250);
+            updateSensors();
+            updateStuckStatus();
+            sensorUpdateInterval = setInterval(() => {
+                updateSensors();
+                updateStuckStatus();
+            }, 250);
         }
 
         function stopSensorUpdates() {
@@ -196,7 +217,6 @@ void WebInterface::begin() {
             updateState();   // Get initial state
             setInterval(updateState, 1000);
             stopMotors();
-
             // Add event listeners for toggles
             document.getElementById('sensorUpdatesEnabled').addEventListener('change', function(e) {
                 if (e.target.checked) {
@@ -242,7 +262,6 @@ void WebInterface::begin() {
                 alert("Please enter a valid steering value between -100 and 100");
                 return;
             }
-            
             fetch("/motors/steering?value=" + value).then(() => {
                 input.style.backgroundColor = "#e8ffe8";
                 setTimeout(() => input.style.backgroundColor = "", 500);
@@ -354,7 +373,7 @@ void WebInterface::begin() {
             server.send(400, "text/plain", "Must be in manual mode");
             return;
         }
-        
+
         if(server.hasArg("value")) {
             float steering = server.arg("value").toFloat();
             if (steering >= -1.0f && steering <= 1.0f) {
@@ -423,13 +442,25 @@ void WebInterface::begin() {
             server.send(400, "text/plain", "Must be in manual mode");
             return;
         }
-        
         motors.calibrate();
-        
         String json = "{";
         json += "\"left\":" + String(motors.getLeftScale()) + ",";
         json += "\"right\":" + String(motors.getRightScale());
         json += "}";
         server.send(200, "application/json", json);
+    });
+
+    // Add new endpoint before the final curly brace
+    server.on("/status/stuck", HTTP_GET, [this]() {
+        String json = "{";
+        json += "\"stuck\":" + String(robot.isStuck() ? "true" : "false") + ",";
+        json += "\"backupRemaining\":" + String(robot.getBackupTimeRemaining());
+        json += "}";
+        server.send(200, "application/json", json);
+    });
+
+    server.on("/motors/test_backup", HTTP_GET, [this]() {
+        robot.testBackup();
+        server.send(200, "text/plain", "Running backup test");
     });
 }
